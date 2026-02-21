@@ -51,34 +51,31 @@
       }
     },
     {
-      "name": "Insert into market_prices Table",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 2,
+      "name": "Format Prices for Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
       "position": [1000, 0],
       "parameters": {
-        "dataTableName": "market_prices",
-        "mode": "insert",
-        "columns": ["symbol", "timestamp", "close", "volume", "open", "high", "low"]
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0",
+              "name": "prices_data",
+              "type": "expression",
+              "value": "={{$json}}"
+            }
+          ]
+        }
       }
     },
     {
-      "name": "Count Inserted Records",
+      "name": "Log Ingestion",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [1200, 0],
       "parameters": {
-        "functionCode": "const count = items.length; return [{json: {records_inserted: count, status: 'success', timestamp: new Date().toISOString()}}];"
-      }
-    },
-    {
-      "name": "Log Ingestion Status",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 2,
-      "position": [1400, 0],
-      "parameters": {
-        "dataTableName": "ingestion_logs",
-        "mode": "insert",
-        "columns": ["run_id", "timestamp", "status", "records_inserted"]
+        "functionCode": "const count = items.length; console.log(`[INGEST] Processed ${count} price records at ${new Date().toISOString()}`); return [{json: {status: 'success', records_processed: count, timestamp: new Date().toISOString()}}];"
       }
     }
   ],
@@ -96,13 +93,10 @@
       "main": [[{"node": "Transform Price Data", "branch": 0, "index": 0}]]
     },
     "Transform Price Data": {
-      "main": [[{"node": "Insert into market_prices Table", "branch": 0, "index": 0}]]
+      "main": [[{"node": "Format Prices for Output", "branch": 0, "index": 0}]]
     },
-    "Insert into market_prices Table": {
-      "main": [[{"node": "Count Inserted Records", "branch": 0, "index": 0}]]
-    },
-    "Count Inserted Records": {
-      "main": [[{"node": "Log Ingestion Status", "branch": 0, "index": 0}]]
+    "Format Prices for Output": {
+      "main": [[{"node": "Log Ingestion", "branch": 0, "index": 0}]]
     }
   },
   "settings": {

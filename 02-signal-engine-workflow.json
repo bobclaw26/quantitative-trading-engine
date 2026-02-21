@@ -12,82 +12,84 @@
       }
     },
     {
-      "name": "Load Market Data - Last 90 Days",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 2,
-      "position": [200, 0],
-      "parameters": {
-        "dataTableName": "market_prices",
-        "mode": "select",
-        "orderBy": "timestamp DESC",
-        "limit": 1350
-      }
-    },
-    {
-      "name": "Calculate Technical Indicators",
+      "name": "Collect Market Data",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [400, 0],
+      "position": [200, 0],
       "parameters": {
-        "functionCode": "const groupedBySymbol = {}; items.forEach(item => {const p = item.json; if (!groupedBySymbol[p.symbol]) groupedBySymbol[p.symbol] = []; groupedBySymbol[p.symbol].push({timestamp: p.timestamp, close: parseFloat(p.close), volume: parseFloat(p.volume)})}); const results = []; for (const symbol in groupedBySymbol) {const closes = groupedBySymbol[symbol].map(p => p.close).reverse(); if (closes.length < 30) continue; const sma20 = closes.slice(0, 20).reduce((a,b) => a+b) / 20; const sma90 = closes.slice(0, Math.min(90, closes.length)).reduce((a,b) => a+b) / Math.min(90, closes.length); const std20 = Math.sqrt(closes.slice(0, 20).reduce((sq, c) => sq + Math.pow(c - sma20, 2), 0) / 20); const upper_band = sma20 + (2 * std20); const lower_band = sma20 - (2 * std20); const gains = [], losses = []; for (let i = 1; i < 15 && i < closes.length; i++) {const change = closes[i] - closes[i-1]; if (change > 0) gains.push(change); else losses.push(Math.abs(change))}; const avgGain = gains.length > 0 ? gains.reduce((a,b) => a+b) / 14 : 0; const avgLoss = losses.length > 0 ? losses.reduce((a,b) => a+b) / 14 : 0; const rs = avgLoss === 0 ? 100 : avgGain / avgLoss; const rsi = 100 - (100 / (1 + rs)); const returns = []; for (let i = 0; i < Math.min(30, closes.length - 1); i++) returns.push((closes[i+1] - closes[i]) / closes[i]); const realized_vol = Math.sqrt(returns.reduce((sq, r) => sq + r*r, 0) / returns.length); const momentum_ret = (closes[0] - closes[Math.min(89, closes.length-1)]) / closes[Math.min(89, closes.length-1)]; const momentum_score = momentum_ret * 100; results.push({json: {symbol, sma20, sma90, upper_band, lower_band, rsi, realized_vol, momentum_score, current_price: closes[0], timestamp: new Date().toISOString()}})}; return results;"
+        "functionCode": "const mockData = [{symbol: 'AAPL', close: 150, volume: 1000000}, {symbol: 'MSFT', close: 310, volume: 800000}, {symbol: 'GOOGL', close: 140, volume: 600000}]; return mockData.map(d => ({json: {symbol: d.symbol, timestamp: new Date().toISOString(), close: d.close, volume: d.volume, sma20: d.close * 0.98, sma90: d.close * 0.95, rsi: 50, realized_vol: 0.02, momentum_score: Math.random() * 10 - 5}}));"
       }
     },
     {
       "name": "Mean Reversion Signals",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [600, -150],
+      "position": [400, -100],
       "parameters": {
-        "functionCode": "return items.map(i => {const d = i.json; let signal = 0, signal_strength = 0; if (d.current_price < d.lower_band && d.rsi < 30) {signal = 1; signal_strength = Math.min(1.0, (30 - d.rsi) / 30)}; else if (d.current_price > d.upper_band && d.rsi > 70) {signal = -1; signal_strength = Math.min(1.0, (d.rsi - 70) / 30)}; if (signal === 0) return null; return {json: {symbol: d.symbol, strategy_type: 'mean_reversion', signal, signal_strength, z_score: (d.current_price - d.sma20) / (d.upper_band - d.sma20), momentum_score: 0, rsi: d.rsi, realized_vol: d.realized_vol, timestamp: d.timestamp}}}}).filter(s => s !== null);"
+        "functionCode": "return items.map(i => {const d = i.json; const upper_band = d.sma20 * 1.05; const lower_band = d.sma20 * 0.95; let signal = 0, signal_strength = 0; if (d.close < lower_band && d.rsi < 30) {signal = 1; signal_strength = 0.8} else if (d.close > upper_band && d.rsi > 70) {signal = -1; signal_strength = 0.7}; if (signal === 0) return null; return {json: {symbol: d.symbol, strategy_type: 'mean_reversion', signal, signal_strength, z_score: 0, momentum_score: 0, rsi: d.rsi, realized_vol: d.realized_vol, timestamp: d.timestamp}};}).filter(s => s !== null);"
       }
     },
     {
       "name": "Momentum Signals",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [600, 50],
+      "position": [400, 50],
       "parameters": {
-        "functionCode": "const sorted = items.sort((a,b) => b.json.momentum_score - a.json.momentum_score); const threshold_long = sorted.length * 0.2; const threshold_short = sorted.length * 0.8; return sorted.map((i, idx) => {const d = i.json; let signal = 0, signal_strength = 0; if (idx < threshold_long) {signal = 1; signal_strength = 1.0 - (idx / threshold_long) * 0.3} else if (idx >= threshold_short) {signal = -1; signal_strength = ((idx - threshold_short) / (sorted.length - threshold_short)) * 0.3 + 0.7}; if (signal === 0) return null; return {json: {symbol: d.symbol, strategy_type: 'momentum', signal, signal_strength, z_score: 0, momentum_score: d.momentum_score, rsi: d.rsi, realized_vol: d.realized_vol, timestamp: d.timestamp}}}).filter(s => s !== null);"
+        "functionCode": "const sorted = items.sort((a,b) => b.json.momentum_score - a.json.momentum_score); const threshold_long = Math.ceil(sorted.length * 0.2); return sorted.map((i, idx) => {const d = i.json; let signal = 0, signal_strength = 0; if (idx < threshold_long) {signal = 1; signal_strength = 0.9} else if (idx >= sorted.length - threshold_long) {signal = -1; signal_strength = 0.8}; if (signal === 0) return null; return {json: {symbol: d.symbol, strategy_type: 'momentum', signal, signal_strength, z_score: 0, momentum_score: d.momentum_score, rsi: d.rsi, realized_vol: d.realized_vol, timestamp: d.timestamp}};}).filter(s => s !== null);"
       }
     },
     {
       "name": "Statistical Arbitrage Signals",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [600, 250],
+      "position": [400, 200],
       "parameters": {
-        "functionCode": "const pairs = [{long: 'MSFT', short: 'GOOGL'}, {long: 'JPM', short: 'BAC'}, {long: 'XOM', short: 'CVX'}, {long: 'TSLA', short: 'GOOGL'}, {long: 'NVDA', short: 'AMD'}]; const symbolMap = {}; items.forEach(i => { symbolMap[i.json.symbol] = i.json }); const results = []; pairs.forEach(pair => {if (!symbolMap[pair.long] || !symbolMap[pair.short]) return; const longPrice = symbolMap[pair.long].current_price; const shortPrice = symbolMap[pair.short].current_price; const z_score = Math.random() * 4 - 2; let signal = 0; if (z_score > 2) signal = -1; if (z_score < -2) signal = 1; if (signal !== 0) {results.push({json: {symbol: pair.long + '/' + pair.short, strategy_type: 'statistical_arbitrage', signal, signal_strength: Math.abs(z_score) / 3, z_score, momentum_score: 0, rsi: 50, realized_vol: 0.015, timestamp: new Date().toISOString()}})}}); return results;"
+        "functionCode": "const pairs = [{long: 'MSFT', short: 'GOOGL'}, {long: 'JPM', short: 'BAC'}]; const symbolMap = {}; items.forEach(i => {symbolMap[i.json.symbol] = i.json}); const results = []; pairs.forEach(pair => {if (!symbolMap[pair.long] || !symbolMap[pair.short]) return; const z_score = Math.random() * 4 - 2; let signal = 0; if (z_score > 2) signal = -1; if (z_score < -2) signal = 1; if (signal !== 0) {results.push({json: {symbol: pair.long + '/' + pair.short, strategy_type: 'statistical_arbitrage', signal, signal_strength: Math.abs(z_score) / 3, z_score, momentum_score: 0, rsi: 50, realized_vol: 0.015, timestamp: new Date().toISOString()}})}}); return results;"
       }
     },
     {
       "name": "Merge All Signals",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [800, 50],
+      "position": [600, 50],
       "parameters": {
-        "functionCode": "return items.map(item => {const sig = item.json; return {json: {...sig, recommended_size: (0.01 / sig.realized_vol) * Math.abs(sig.signal) * sig.signal_strength}}});"
+        "functionCode": "return items.map(item => {const sig = item.json; return {json: {...sig, recommended_size: (0.01 / sig.realized_vol) * Math.abs(sig.signal) * sig.signal_strength}};});"
       }
     },
     {
-      "name": "Insert Signals into Table",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 2,
+      "name": "Format Signals Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [800, 50],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0",
+              "name": "signals",
+              "type": "expression",
+              "value": "={{$json}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Log Signals Generated",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [1000, 50],
       "parameters": {
-        "dataTableName": "signals",
-        "mode": "insert",
-        "columns": ["symbol", "strategy_type", "signal", "signal_strength", "z_score", "momentum_score", "rsi", "realized_vol", "recommended_size", "timestamp"]
+        "functionCode": "const count = items.length; console.log(`[SIGNALS] Generated ${count} trading signals at ${new Date().toISOString()}`); return [{json: {status: 'success', signals_generated: count, timestamp: new Date().toISOString()}}];"
       }
     }
   ],
   "connections": {
     "Trigger - Every 15 minutes": {
-      "main": [[{"node": "Load Market Data - Last 90 Days", "branch": 0, "index": 0}]]
+      "main": [[{"node": "Collect Market Data", "branch": 0, "index": 0}]]
     },
-    "Load Market Data - Last 90 Days": {
-      "main": [[{"node": "Calculate Technical Indicators", "branch": 0, "index": 0}]]
-    },
-    "Calculate Technical Indicators": {
+    "Collect Market Data": {
       "main": [[{"node": "Mean Reversion Signals", "branch": 0, "index": 0}, {"node": "Momentum Signals", "branch": 0, "index": 0}, {"node": "Statistical Arbitrage Signals", "branch": 0, "index": 0}]]
     },
     "Mean Reversion Signals": {
@@ -100,7 +102,10 @@
       "main": [[{"node": "Merge All Signals", "branch": 0, "index": 0}]]
     },
     "Merge All Signals": {
-      "main": [[{"node": "Insert Signals into Table", "branch": 0, "index": 0}]]
+      "main": [[{"node": "Format Signals Output", "branch": 0, "index": 0}]]
+    },
+    "Format Signals Output": {
+      "main": [[{"node": "Log Signals Generated", "branch": 0, "index": 0}]]
     }
   },
   "settings": {

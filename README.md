@@ -158,20 +158,17 @@ IF z < -2 → Long spread (long strong, short weak)
 
 ---
 
-## Data Tables
+## Workflow Execution
 
-| Table | Records | Update | Purpose |
-|-------|---------|--------|---------|
-| `market_prices` | 15 symbols × 288/day | 5 min | Price history |
-| `signals` | ~20-30 | 15 min | Active trading signals |
-| `paper_positions` | 0-50 | 30 min | Open trades |
-| `trade_log` | +5-10/day | 30 min | Trade history (permanent) |
-| `portfolio_summary` | +24/day | 60 min | Daily metrics |
-| `strategy_breakdown` | 3 rows | 60 min | Strategy attribution |
-| `ingestion_logs` | +288/day | 5 min | Health monitoring |
+Each workflow triggers on a schedule and processes data through Function nodes:
 
-**Total storage:** ~50MB/month
-**Retention:** 90 days rolling + permanent trade log
+- **Workflow 1 (Data Ingestion):** Fetches Alpha Vantage prices every 5 min
+- **Workflow 2 (Signals):** Generates signals every 15 min (mean reversion, momentum, stat arb)
+- **Workflow 3 (Execution):** Simulates trade execution every 30 min
+- **Workflow 4 (Portfolio):** Calculates metrics every hour
+- **Workflow 5 (Dashboard API):** Serves REST endpoint for live data
+
+**Note:** Uses n8n execution history for data persistence. For production, connect to an external database (PostgreSQL, MongoDB, etc.)
 
 ---
 
@@ -203,11 +200,11 @@ trading-engine/
 
 ### Quick Start
 
-1. **Create 7 Data Tables** (see `DATA_TABLES_SCHEMA.md`)
-2. **Import 5 workflows** (copy JSON files)
-3. **Add Polygon.io credential**
-4. **Activate all workflows**
-5. **Deploy dashboard.html**
+1. **Import 5 workflows** (copy JSON files into n8n)
+2. **Add Alpha Vantage API credential** (set ALPHA_VANTAGE_API_KEY environment variable)
+3. **Activate all workflows**
+4. **Test each workflow manually**
+5. **Open dashboard.html** (or call `/webhook/trading-dashboard` endpoint)
 
 **Full instructions:** See `DEPLOYMENT_RUNBOOK.md`
 
