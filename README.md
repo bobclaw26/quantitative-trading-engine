@@ -12,7 +12,7 @@
 
 This is a **complete, modular quantitative trading system** that:
 
-✅ Ingest market data every 5 minutes (Polygon API)
+✅ Ingest market data every 5 minutes (Alpha Vantage API)
 ✅ Generate 3 independent trading strategies every 15 minutes
 ✅ Execute paper trades every 30 minutes (no real money)
 ✅ Calculate portfolio metrics every hour
@@ -198,7 +198,7 @@ trading-engine/
 ### Prerequisites
 
 - n8n Cloud account (Pro or Enterprise)
-- Polygon.io free API key
+- Alpha Vantage free API key (https://www.alphavantage.co/)
 - 30 minutes
 
 ### Quick Start
@@ -519,9 +519,9 @@ Visit dashboard every morning. Check:
 
 ### API Costs
 
-- **Polygon.io:** Free (real-time limit: 5 req/min)
-- **Alternative (Alpha Vantage):** Free tier
-- **Production fallback (IEX Cloud):** $99+/month
+- **Alpha Vantage:** Free tier (5 requests/min, 500 requests/day limit)
+- **Upgrade options:** Premium plans at alphavantage.co
+- **Alternative (IEX Cloud):** $99+/month
 
 ### Infrastructure
 
@@ -535,7 +535,7 @@ Visit dashboard every morning. Check:
 
 - **n8n Docs:** https://docs.n8n.io
 - **n8n Community:** https://community.n8n.io
-- **Polygon.io API:** https://polygon.io/docs
+- **Alpha Vantage API:** https://www.alphavantage.co/documentation/
 - **This project:** Built with n8n-workflow-automation skill
 
 ---
