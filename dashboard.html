@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantitative Trading Engine - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #0a0e27;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #1a1f3a;
+            padding-bottom: 15px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #fff;
+        }
+
+        .last-update {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #141829;
+            border: 1px solid #1a1f3a;
+            border-radius: 8px;
+            padding: 20px;
+            transition: border-color 0.3s;
+        }
+
+        .card:hover {
+            border-color: #2a3f5f;
+        }
+
+        .card-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .card-subtext {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .positive {
+            color: #00d084;
+        }
+
+        .negative {
+            color: #ff4d4d;
+        }
+
+        .neutral {
+            color: #888;
+        }
+
+        .dashboard-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: #141829;
+            border: 1px solid #1a1f3a;
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+            height: 350px;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #141829;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #1a1f3a;
+        }
+
+        thead {
+            background-color: #0a0e27;
+            border-bottom: 1px solid #1a1f3a;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #1a1f3a;
+            font-size: 13px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background-color: #1a1f3a;
+        }
+
+        .symbol-cell {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-box {
+            background: #0a0e27;
+            border: 1px solid #1a1f3a;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .large-card {
+            grid-column: span 2;
+        }
+
+        @media (max-width: 1200px) {
+            .large-card {
+                grid-column: span 1;
+            }
+
+            .dashboard-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #3d1f1f;
+            border: 1px solid #6d2f2f;
+            color: #ff8888;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Quantitative Trading Engine</h1>
+        <div class="last-update" id="lastUpdate">Loading...</div>
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div id="content" class="loading">Loading dashboard...</div>
+
+    <script>
+        const API_URL = '/webhook/trading-dashboard'; // Update with actual n8n webhook URL
+        const REFRESH_INTERVAL = 60000; // 1 minute
+
+        async function fetchDashboard() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                renderDashboard(data);
+                document.getElementById('error').style.display = 'none';
+            } catch (error) {
+                console.error('Failed to fetch dashboard:', error);
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function renderDashboard(data) {
+            const portfolio = data.portfolio;
+            const timestamp = new Date(data.metadata.timestamp);
+
+            // Format currency
+            const fmt = (n) => new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0
+            }).format(n);
+
+            const fmt2 = (n) => new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2
+            }).format(n);
+
+            const pnlClass = portfolio.unrealized_pnl >= 0 ? 'positive' : 'negative';
+            const pnlPct = ((portfolio.unrealized_pnl) / (portfolio.total_value - portfolio.unrealized_pnl)) * 100;
+
+            const html = `
+                <div class="grid">
+                    <div class="card">
+                        <div class="card-title">Portfolio Value</div>
+                        <div class="card-value">${fmt(portfolio.total_value)}</div>
+                        <div class="card-subtext">Initial: $100,000</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Total P&L</div>
+                        <div class="card-value ${pnlClass}">${fmt2(portfolio.unrealized_pnl)}</div>
+                        <div class="card-subtext ${pnlClass}">${pnlPct.toFixed(2)}% Return</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Sharpe Ratio</div>
+                        <div class="card-value">${portfolio.sharpe_ratio.toFixed(2)}</div>
+                        <div class="card-subtext">Risk-adjusted returns</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Max Drawdown</div>
+                        <div class="card-value negative">${portfolio.max_drawdown.toFixed(2)}%</div>
+                        <div class="card-subtext">Peak-to-trough decline</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Win Rate</div>
+                        <div class="card-value positive">${portfolio.win_rate.toFixed(1)}%</div>
+                        <div class="card-subtext">${portfolio.num_trades} trades</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Open Positions</div>
+                        <div class="card-value">${portfolio.num_positions}</div>
+                        <div class="card-subtext">Active positions</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-row">
+                    <div class="chart-container">
+                        <div class="chart-title">Top Movers</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>P&L</th>
+                                    <th>Strategy</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.top_movers.map(m => `
+                                    <tr>
+                                        <td class="symbol-cell">${m.symbol}</td>
+                                        <td class="${m.pnl >= 0 ? 'positive' : 'negative'}">${fmt2(m.pnl)}</td>
+                                        <td>${m.strategy}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Strategy Breakdown</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Strategy</th>
+                                    <th>Positions</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.strategy_breakdown.map(s => `
+                                    <tr>
+                                        <td class="symbol-cell">${s.strategy}</td>
+                                        <td>${s.positions}</td>
+                                        <td>${fmt(s.value)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="dashboard-row">
+                    <div class="chart-container">
+                        <div class="chart-title">Active Signals</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Signal</th>
+                                    <th>Strength</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.signals_summary.latest.map(s => `
+                                    <tr>
+                                        <td class="symbol-cell">${s.symbol}</td>
+                                        <td class="${s.signal === 'LONG' ? 'positive' : 'negative'}">${s.signal}</td>
+                                        <td>${(s.strength * 100).toFixed(0)}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Recent Trades</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Side</th>
+                                    <th>Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.recent_trades.map(t => `
+                                    <tr>
+                                        <td class="symbol-cell">${t.symbol}</td>
+                                        <td class="${t.side === 'BUY' ? 'positive' : 'negative'}">${t.side}</td>
+                                        <td>${t.quantity}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="text-align: center; color: #666; margin-top: 30px; font-size: 12px;">
+                    Last updated: ${timestamp.toLocaleString()}
+                </div>
+            `;
+
+            document.getElementById('content').innerHTML = html;
+            document.getElementById('lastUpdate').textContent = `Last update: ${timestamp.toLocaleTimeString()}`;
+        }
+
+        // Initial load
+        fetchDashboard();
+
+        // Auto-refresh
+        setInterval(fetchDashboard, REFRESH_INTERVAL);
+
+        // Manual refresh
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'r') {
+                fetchDashboard();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+{
+  "name": "Quantitative Trading Engine - Market Data Ingestion",
+  "nodes": [
+    {
+      "name": "Trigger - Every 5 minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {
+        "cronExpression": "*/5 * * * *",
+        "timezone": "UTC"
+      }
+    },
+    {
+      "name": "Generate Run ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "parameters": {
+        "jsCode": "const run_id = 'INGEST-' + Date.now() + '-' + Math.random().toString(36).substring(7);\nreturn { run_id, timestamp: new Date().toISOString() };"
+      }
+    },
+    {
+      "name": "Fetch Polygon API - Batch Symbols",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 0],
+      "parameters": {
+        "jsCode": "// Predefined symbols for trading engine\nconst symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'BAC', 'WFC', 'XOM', 'CVX', 'MCD', 'NKE', 'COST'];\nreturn symbols.map(s => ({ symbol: s }));"
+      }
+    },
+    {
+      "name": "HTTP Request - Polygon Prices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [600, 0],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.polygon.io/v1/open-close/{{$json.symbol}}/{{$now.format('YYYY-MM-DD')}}",
+        "headers": {
+          "Authorization": "=Bearer {{$env.POLYGON_API_KEY}}"
+        },
+        "returnFullResponse": false
+      },
+      "onError": "continueRegardless"
+    },
+    {
+      "name": "Transform Price Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 0],
+      "parameters": {
+        "jsCode": "// Extract and normalize price data\nconst data = $input.all();\nreturn data.map(item => {\n  const symbol = item.json.symbol;\n  const priceData = item.json.body || {};\n  \n  return {\n    symbol: symbol,\n    timestamp: new Date().toISOString(),\n    close: priceData.close || 0,\n    volume: priceData.volume || 0,\n    open: priceData.open || 0,\n    high: priceData.high || 0,\n    low: priceData.low || 0,\n    ingestion_run_id: '{{$json.run_id}}'\n  };\n}).filter(d => d.close > 0);"
+      }
+    },
+    {
+      "name": "Insert into market_prices Table",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [1000, 0],
+      "parameters": {
+        "dataTableName": "market_prices",
+        "mode": "insert",
+        "columns": ["symbol", "timestamp", "close", "volume", "open", "high", "low"]
+      }
+    },
+    {
+      "name": "Log Ingestion Status",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [1200, 0],
+      "parameters": {
+        "dataTableName": "ingestion_logs",
+        "mode": "insert",
+        "columns": ["run_id", "timestamp", "status", "records_inserted", "error_message"]
+      }
+    },
+    {
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 200],
+      "parameters": {
+        "jsCode": "// Log error for manual review\nreturn { status: 'failed', error: '{{$error.message}}', run_id: '{{$json.run_id}}', timestamp: new Date().toISOString() };"
+      },
+      "onError": "stopExecution"
+    }
+  ],
+  "connections": {
+    "Trigger - Every 5 minutes": {
+      "main": [[{ "node": "Generate Run ID", "branch": 0, "index": 0 }]]
+    },
+    "Generate Run ID": {
+      "main": [[{ "node": "Fetch Polygon API - Batch Symbols", "branch": 0, "index": 0 }]]
+    },
+    "Fetch Polygon API - Batch Symbols": {
+      "main": [[{ "node": "HTTP Request - Polygon Prices", "branch": 0, "index": 0 }]]
+    },
+    "HTTP Request - Polygon Prices": {
+      "main": [[{ "node": "Transform Price Data", "branch": 0, "index": 0 }]]
+    },
+    "Transform Price Data": {
+      "main": [[{ "node": "Insert into market_prices Table", "branch": 0, "index": 0 }]]
+    },
+    "Insert into market_prices Table": {
+      "main": [[{ "node": "Log Ingestion Status", "branch": 0, "index": 0 }]]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "errorHandler": "Error Handler"
+  },
+  "active": false
+}

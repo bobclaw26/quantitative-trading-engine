@@ -1,0 +1,140 @@
+{
+  "name": "Quantitative Trading Engine - Execution Engine",
+  "nodes": [
+    {
+      "name": "Trigger - Every 30 minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {
+        "cronExpression": "*/30 * * * *",
+        "timezone": "UTC"
+      }
+    },
+    {
+      "name": "Load Current Positions",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "parameters": {
+        "dataTableName": "paper_positions",
+        "mode": "select"
+      }
+    },
+    {
+      "name": "Load Active Signals",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [200, 100],
+      "parameters": {
+        "dataTableName": "signals",
+        "mode": "select",
+        "orderBy": "timestamp DESC",
+        "limit": 100
+      }
+    },
+    {
+      "name": "Load Current Prices",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [200, 200],
+      "parameters": {
+        "dataTableName": "market_prices",
+        "mode": "select",
+        "orderBy": "timestamp DESC",
+        "limit": 15
+      }
+    },
+    {
+      "name": "Load Portfolio State",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "parameters": {
+        "dataTableName": "portfolio_summary",
+        "mode": "select",
+        "orderBy": "timestamp DESC",
+        "limit": 1
+      }
+    },
+    {
+      "name": "Match Signals to Prices & Execute",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 100],
+      "parameters": {
+        "jsCode": "const positions = $('Load Current Positions').all().map(p => p.json);\nconst signals = $('Load Active Signals').all().map(s => s.json);\nconst prices = $('Load Current Prices').all().map(p => p.json);\nconst portfolio = $('Load Portfolio State').all()[0]?.json || { total_portfolio_value: 100000 };\n\nconst priceMap = {};\nprices.forEach(p => { priceMap[p.symbol] = parseFloat(p.close); });\n\nconst positionMap = {};\npositions.forEach(p => { positionMap[p.symbol] = p; });\n\nconst trades = [];\nconst timestamp = new Date().toISOString();\nconst capital = portfolio.total_portfolio_value * 0.01;  // 1% per trade risk\n\nsignals.forEach(sig => {\n  const symbol = sig.symbol;\n  const currentPrice = priceMap[symbol];\n  \n  if (!currentPrice) return;\n  \n  const existingPos = positionMap[symbol];\n  const position_size = capital / currentPrice * sig.signal_strength;\n  \n  // Check if we should open/close position\n  if (sig.signal === 1 && !existingPos) {\n    // Open long\n    trades.push({\n      symbol,\n      side: 'BUY',\n      quantity: Math.floor(position_size),\n      price: currentPrice,\n      strategy_type: sig.strategy_type,\n      timestamp\n    });\n  } else if (sig.signal === -1 && !existingPos) {\n    // Open short\n    trades.push({\n      symbol,\n      side: 'SELL',\n      quantity: Math.floor(position_size),\n      price: currentPrice,\n      strategy_type: sig.strategy_type,\n      timestamp\n    });\n  } else if (sig.signal === 0 && existingPos) {\n    // Close position\n    trades.push({\n      symbol,\n      side: existingPos.quantity > 0 ? 'SELL' : 'BUY',\n      quantity: Math.abs(existingPos.quantity),\n      price: currentPrice,\n      strategy_type: existingPos.strategy_type,\n      timestamp\n    });\n  }\n});\n\nreturn trades;"
+      }
+    },
+    {
+      "name": "Update Positions & Log Trades",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 100],
+      "parameters": {
+        "jsCode": "const trades = $input.all();\nconst positionUpdates = [];\nconst tradeLog = [];\n\ntrades.forEach(trade => {\n  const t = trade.json;\n  \n  // Log trade\n  tradeLog.push({\n    symbol: t.symbol,\n    side: t.side,\n    quantity: t.quantity,\n    price: t.price,\n    pnl: 0,  // Will be calculated in portfolio aggregator\n    strategy_type: t.strategy_type,\n    timestamp: t.timestamp\n  });\n  \n  // Update position\n  if (t.side === 'BUY') {\n    positionUpdates.push({\n      symbol: t.symbol,\n      quantity: t.quantity,\n      entry_price: t.price,\n      current_price: t.price,\n      unrealized_pnl: 0,\n      position_value: t.quantity * t.price,\n      strategy_type: t.strategy_type,\n      entry_date: new Date().toISOString()\n    });\n  } else if (t.side === 'SELL') {\n    // Close position - mark as cleared\n    positionUpdates.push({\n      symbol: t.symbol + '_CLOSED',\n      quantity: 0,\n      entry_price: t.price,\n      current_price: t.price,\n      unrealized_pnl: 0,\n      position_value: 0,\n      strategy_type: t.strategy_type,\n      entry_date: new Date().toISOString()\n    });\n  }\n});\n\nreturn { positionUpdates, tradeLog };"
+      }
+    },
+    {
+      "name": "Insert Trade Log",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [800, 0],
+      "parameters": {
+        "dataTableName": "trade_log",
+        "mode": "insert",
+        "columns": ["symbol", "side", "quantity", "price", "pnl", "strategy_type", "timestamp"]
+      }
+    },
+    {
+      "name": "Update Positions Table",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [800, 100],
+      "parameters": {
+        "dataTableName": "paper_positions",
+        "mode": "upsert",
+        "columns": ["symbol", "quantity", "entry_price", "current_price", "unrealized_pnl", "position_value", "strategy_type", "entry_date"]
+      }
+    },
+    {
+      "name": "Update Unrealized PnL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 100],
+      "parameters": {
+        "jsCode": "// Update current prices for all open positions\nconst prices = $('Load Current Prices').all();\nconst priceMap = {};\nprices.forEach(p => { priceMap[p.json.symbol] = p.json.close; });\n\nconst positions = $('Load Current Positions').all().map(p => p.json);\nreturn positions.map(pos => ({\n  symbol: pos.symbol,\n  quantity: pos.quantity,\n  entry_price: pos.entry_price,\n  current_price: priceMap[pos.symbol] || pos.current_price,\n  unrealized_pnl: (priceMap[pos.symbol] - pos.entry_price) * pos.quantity,\n  position_value: priceMap[pos.symbol] * pos.quantity,\n  strategy_type: pos.strategy_type,\n  entry_date: pos.entry_date\n}));"
+      }
+    }
+  ],
+  "connections": {
+    "Trigger - Every 30 minutes": {
+      "main": [[{ "node": "Load Current Positions", "branch": 0, "index": 0 }, { "node": "Load Active Signals", "branch": 0, "index": 0 }, { "node": "Load Current Prices", "branch": 0, "index": 0 }, { "node": "Load Portfolio State", "branch": 0, "index": 0 }]]
+    },
+    "Load Current Positions": {
+      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
+    },
+    "Load Active Signals": {
+      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
+    },
+    "Load Current Prices": {
+      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }, { "node": "Update Unrealized PnL", "branch": 0, "index": 0 }]]
+    },
+    "Load Portfolio State": {
+      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
+    },
+    "Match Signals to Prices & Execute": {
+      "main": [[{ "node": "Update Positions & Log Trades", "branch": 0, "index": 0 }]]
+    },
+    "Update Positions & Log Trades": {
+      "main": [[{ "node": "Insert Trade Log", "branch": 0, "index": 0 }, { "node": "Update Positions Table", "branch": 0, "index": 0 }]]
+    },
+    "Update Positions Table": {
+      "main": [[{ "node": "Update Unrealized PnL", "branch": 0, "index": 0 }]]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true
+  },
+  "active": false
+}

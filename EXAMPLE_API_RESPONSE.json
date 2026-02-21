@@ -1,0 +1,281 @@
+{
+  "metadata": {
+    "timestamp": "2024-01-24T14:32:15.000Z",
+    "version": "1.0"
+  },
+  "portfolio": {
+    "total_value": 105234.50,
+    "unrealized_pnl": 5234.50,
+    "realized_pnl": 1200.00,
+    "sharpe_ratio": 1.45,
+    "max_drawdown": -8.32,
+    "win_rate": 62.5,
+    "cagr": 52.35,
+    "num_positions": 12,
+    "num_trades": 48
+  },
+  "top_movers": [
+    {
+      "symbol": "NVDA",
+      "pnl": 2150.00,
+      "pnl_pct": 8.6,
+      "quantity": 25,
+      "entry_price": 89.50,
+      "current_price": 95.30,
+      "strategy": "momentum"
+    },
+    {
+      "symbol": "MSFT",
+      "pnl": 1240.50,
+      "pnl_pct": 5.2,
+      "quantity": 35,
+      "entry_price": 320.00,
+      "current_price": 334.67,
+      "strategy": "mean_reversion"
+    },
+    {
+      "symbol": "GOOGL",
+      "pnl": 890.75,
+      "pnl_pct": 3.8,
+      "quantity": 15,
+      "entry_price": 145.20,
+      "current_price": 154.10,
+      "strategy": "momentum"
+    },
+    {
+      "symbol": "TSLA",
+      "pnl": -340.25,
+      "pnl_pct": -2.1,
+      "quantity": 20,
+      "entry_price": 240.50,
+      "current_price": 233.80,
+      "strategy": "momentum"
+    },
+    {
+      "symbol": "JPM",
+      "pnl": 293.40,
+      "pnl_pct": 1.9,
+      "quantity": 50,
+      "entry_price": 155.00,
+      "current_price": 158.02,
+      "strategy": "statistical_arbitrage"
+    }
+  ],
+  "signals_summary": {
+    "total_active": 23,
+    "by_strategy": {
+      "mean_reversion": 8,
+      "momentum": 10,
+      "statistical_arbitrage": 5
+    },
+    "latest": [
+      {
+        "symbol": "AAPL",
+        "strategy": "mean_reversion",
+        "signal": "LONG",
+        "strength": 0.82
+      },
+      {
+        "symbol": "MSFT",
+        "strategy": "momentum",
+        "signal": "LONG",
+        "strength": 0.76
+      },
+      {
+        "symbol": "AMZN",
+        "strategy": "mean_reversion",
+        "signal": "SHORT",
+        "strength": 0.63
+      },
+      {
+        "symbol": "TSLA",
+        "strategy": "momentum",
+        "signal": "LONG",
+        "strength": 0.58
+      },
+      {
+        "symbol": "GOOGL",
+        "strategy": "momentum",
+        "signal": "LONG",
+        "strength": 0.71
+      },
+      {
+        "symbol": "META",
+        "strategy": "mean_reversion",
+        "signal": "LONG",
+        "strength": 0.67
+      },
+      {
+        "symbol": "NVDA",
+        "strategy": "momentum",
+        "signal": "LONG",
+        "strength": 0.89
+      },
+      {
+        "symbol": "WFC",
+        "strategy": "statistical_arbitrage",
+        "signal": "LONG",
+        "strength": 0.54
+      },
+      {
+        "symbol": "CVX",
+        "strategy": "mean_reversion",
+        "signal": "SHORT",
+        "strength": 0.61
+      },
+      {
+        "symbol": "COST",
+        "strategy": "momentum",
+        "signal": "LONG",
+        "strength": 0.73
+      }
+    ]
+  },
+  "strategy_breakdown": [
+    {
+      "strategy": "mean_reversion",
+      "positions": 5,
+      "value": 28450.00,
+      "unrealized_pnl": 2150.50
+    },
+    {
+      "strategy": "momentum",
+      "positions": 6,
+      "value": 42300.00,
+      "unrealized_pnl": 2840.25
+    },
+    {
+      "strategy": "statistical_arbitrage",
+      "positions": 1,
+      "value": 8900.00,
+      "unrealized_pnl": 243.75
+    }
+  ],
+  "recent_trades": [
+    {
+      "symbol": "NVDA",
+      "side": "BUY",
+      "quantity": 25,
+      "price": 89.50,
+      "strategy": "momentum",
+      "timestamp": "2024-01-24T14:15:00.000Z"
+    },
+    {
+      "symbol": "MSFT",
+      "side": "SELL",
+      "quantity": 10,
+      "price": 330.00,
+      "strategy": "mean_reversion",
+      "timestamp": "2024-01-24T14:00:00.000Z"
+    },
+    {
+      "symbol": "GOOGL",
+      "side": "BUY",
+      "quantity": 15,
+      "price": 145.20,
+      "strategy": "momentum",
+      "timestamp": "2024-01-24T13:45:00.000Z"
+    },
+    {
+      "symbol": "TSLA",
+      "side": "BUY",
+      "quantity": 20,
+      "price": 240.50,
+      "strategy": "momentum",
+      "timestamp": "2024-01-24T13:30:00.000Z"
+    },
+    {
+      "symbol": "AMZN",
+      "side": "SELL",
+      "quantity": 5,
+      "price": 178.50,
+      "strategy": "mean_reversion",
+      "timestamp": "2024-01-24T13:15:00.000Z"
+    },
+    {
+      "symbol": "BAC",
+      "side": "BUY",
+      "quantity": 50,
+      "price": 32.10,
+      "strategy": "statistical_arbitrage",
+      "timestamp": "2024-01-24T13:00:00.000Z"
+    },
+    {
+      "symbol": "JPM",
+      "side": "BUY",
+      "quantity": 50,
+      "price": 155.00,
+      "strategy": "statistical_arbitrage",
+      "timestamp": "2024-01-24T12:45:00.000Z"
+    },
+    {
+      "symbol": "AAPL",
+      "side": "SELL",
+      "quantity": 15,
+      "price": 198.30,
+      "strategy": "mean_reversion",
+      "timestamp": "2024-01-24T12:30:00.000Z"
+    },
+    {
+      "symbol": "META",
+      "side": "BUY",
+      "quantity": 10,
+      "price": 485.50,
+      "strategy": "mean_reversion",
+      "timestamp": "2024-01-24T12:15:00.000Z"
+    },
+    {
+      "symbol": "NKE",
+      "side": "SELL",
+      "quantity": 20,
+      "price": 95.70,
+      "strategy": "momentum",
+      "timestamp": "2024-01-24T12:00:00.000Z"
+    }
+  ],
+  "volatility": {
+    "avg": 0.025,
+    "by_symbol": [
+      {
+        "symbol": "TSLA",
+        "vol": 0.032
+      },
+      {
+        "symbol": "NVDA",
+        "vol": 0.029
+      },
+      {
+        "symbol": "GOOGL",
+        "vol": 0.022
+      },
+      {
+        "symbol": "MSFT",
+        "vol": 0.020
+      },
+      {
+        "symbol": "AMZN",
+        "vol": 0.025
+      },
+      {
+        "symbol": "META",
+        "vol": 0.028
+      },
+      {
+        "symbol": "JPM",
+        "vol": 0.018
+      },
+      {
+        "symbol": "BAC",
+        "vol": 0.021
+      },
+      {
+        "symbol": "XOM",
+        "vol": 0.019
+      },
+      {
+        "symbol": "CVX",
+        "vol": 0.020
+      }
+    ]
+  }
+}
