@@ -25,47 +25,47 @@
     },
     {
       "name": "Calculate Technical Indicators",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [400, 0],
       "parameters": {
-        "jsCode": "const prices = $input.all();\nconst groupedBySymbol = {};\n\n// Group prices by symbol\nprices.forEach(p => {\n  if (!groupedBySymbol[p.json.symbol]) groupedBySymbol[p.json.symbol] = [];\n  groupedBySymbol[p.json.symbol].push({\n    timestamp: p.json.timestamp,\n    close: parseFloat(p.json.close),\n    volume: parseFloat(p.json.volume)\n  });\n});\n\nconst results = [];\n\nfor (const symbol in groupedBySymbol) {\n  const closes = groupedBySymbol[symbol].map(p => p.close).reverse();\n  const volumes = groupedBySymbol[symbol].map(p => p.volume).reverse();\n  \n  if (closes.length < 30) continue;\n  \n  // SMA 20\n  const sma20 = closes.slice(0, 20).reduce((a,b) => a+b) / 20;\n  \n  // SMA 90 for momentum\n  const sma90 = closes.slice(0, Math.min(90, closes.length)).reduce((a,b) => a+b) / Math.min(90, closes.length);\n  \n  // Bollinger Bands (20, 2)\n  const std20 = Math.sqrt(closes.slice(0, 20).reduce((sq, c) => sq + Math.pow(c - sma20, 2), 0) / 20);\n  const upper_band = sma20 + (2 * std20);\n  const lower_band = sma20 - (2 * std20);\n  \n  // RSI(14)\n  const gains = [], losses = [];\n  for (let i = 1; i < 15 && i < closes.length; i++) {\n    const change = closes[i] - closes[i-1];\n    if (change > 0) gains.push(change);\n    else losses.push(Math.abs(change));\n  }\n  const avgGain = gains.length > 0 ? gains.reduce((a,b) => a+b) / 14 : 0;\n  const avgLoss = losses.length > 0 ? losses.reduce((a,b) => a+b) / 14 : 0;\n  const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;\n  const rsi = 100 - (100 / (1 + rs));\n  \n  // Realized Volatility (30-day)\n  const returns = [];\n  for (let i = 0; i < Math.min(30, closes.length - 1); i++) {\n    returns.push((closes[i+1] - closes[i]) / closes[i]);\n  }\n  const realized_vol = Math.sqrt(returns.reduce((sq, r) => sq + r*r, 0) / returns.length);\n  \n  // 90-day momentum\n  const momentum_ret = (closes[0] - closes[Math.min(89, closes.length-1)]) / closes[Math.min(89, closes.length-1)];\n  const momentum_score = momentum_ret * 100;\n  \n  const currentPrice = closes[0];\n  \n  results.push({\n    symbol,\n    sma20,\n    sma90,\n    upper_band,\n    lower_band,\n    rsi,\n    realized_vol,\n    momentum_score,\n    current_price: currentPrice,\n    timestamp: new Date().toISOString()\n  });\n}\n\nreturn results;"
+        "functionCode": "const groupedBySymbol = {};\nitems.forEach(item => {\n  const p = item.json;\n  if (!groupedBySymbol[p.symbol]) groupedBySymbol[p.symbol] = [];\n  groupedBySymbol[p.symbol].push({timestamp: p.timestamp, close: parseFloat(p.close), volume: parseFloat(p.volume)});\n});\nconst results = [];\nfor (const symbol in groupedBySymbol) {\n  const closes = groupedBySymbol[symbol].map(p => p.close).reverse();\n  if (closes.length < 30) continue;\n  const sma20 = closes.slice(0, 20).reduce((a,b) => a+b) / 20;\n  const sma90 = closes.slice(0, Math.min(90, closes.length)).reduce((a,b) => a+b) / Math.min(90, closes.length);\n  const std20 = Math.sqrt(closes.slice(0, 20).reduce((sq, c) => sq + Math.pow(c - sma20, 2), 0) / 20);\n  const upper_band = sma20 + (2 * std20);\n  const lower_band = sma20 - (2 * std20);\n  const gains = [], losses = [];\n  for (let i = 1; i < 15 && i < closes.length; i++) {\n    const change = closes[i] - closes[i-1];\n    if (change > 0) gains.push(change); else losses.push(Math.abs(change));\n  }\n  const avgGain = gains.length > 0 ? gains.reduce((a,b) => a+b) / 14 : 0;\n  const avgLoss = losses.length > 0 ? losses.reduce((a,b) => a+b) / 14 : 0;\n  const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;\n  const rsi = 100 - (100 / (1 + rs));\n  const returns = [];\n  for (let i = 0; i < Math.min(30, closes.length - 1); i++) returns.push((closes[i+1] - closes[i]) / closes[i]);\n  const realized_vol = Math.sqrt(returns.reduce((sq, r) => sq + r*r, 0) / returns.length);\n  const momentum_ret = (closes[0] - closes[Math.min(89, closes.length-1)]) / closes[Math.min(89, closes.length-1)];\n  const momentum_score = momentum_ret * 100;\n  results.push({json: {symbol, sma20, sma90, upper_band, lower_band, rsi, realized_vol, momentum_score, current_price: closes[0], timestamp: new Date().toISOString()}});\n}\nreturn results;"
       }
     },
     {
       "name": "Mean Reversion Signals",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [600, -150],
       "parameters": {
-        "jsCode": "// Mean Reversion Strategy: Bollinger Bands + RSI\nconst indicators = $input.all();\nreturn indicators.map(i => {\n  const d = i.json;\n  let signal = 0;\n  let signal_strength = 0;\n  \n  // Long signal: price below lower band AND RSI < 30\n  if (d.current_price < d.lower_band && d.rsi < 30) {\n    signal = 1;  // Long\n    signal_strength = Math.min(1.0, (30 - d.rsi) / 30);\n  }\n  // Short signal: price above upper band AND RSI > 70\n  else if (d.current_price > d.upper_band && d.rsi > 70) {\n    signal = -1;  // Short\n    signal_strength = Math.min(1.0, (d.rsi - 70) / 30);\n  }\n  \n  return {\n    symbol: d.symbol,\n    strategy_type: 'mean_reversion',\n    signal,\n    signal_strength,\n    z_score: (d.current_price - d.sma20) / (d.upper_band - d.sma20),\n    momentum_score: 0,\n    rsi: d.rsi,\n    realized_vol: d.realized_vol,\n    timestamp: d.timestamp\n  };\n}).filter(s => s.signal !== 0);"
+        "functionCode": "return items.map(i => {\n  const d = i.json;\n  let signal = 0, signal_strength = 0;\n  if (d.current_price < d.lower_band && d.rsi < 30) {\n    signal = 1;\n    signal_strength = Math.min(1.0, (30 - d.rsi) / 30);\n  } else if (d.current_price > d.upper_band && d.rsi > 70) {\n    signal = -1;\n    signal_strength = Math.min(1.0, (d.rsi - 70) / 30);\n  }\n  if (signal === 0) return null;\n  return {json: {symbol: d.symbol, strategy_type: 'mean_reversion', signal, signal_strength, z_score: (d.current_price - d.sma20) / (d.upper_band - d.sma20), momentum_score: 0, rsi: d.rsi, realized_vol: d.realized_vol, timestamp: d.timestamp}};\n}).filter(s => s !== null);"
       }
     },
     {
       "name": "Momentum Signals",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [600, 50],
       "parameters": {
-        "jsCode": "// Momentum Strategy: 90-day cross-sectional ranking\nconst indicators = $input.all();\nconst sorted = indicators.sort((a,b) => b.json.momentum_score - a.json.momentum_score);\nconst threshold_long = sorted.length * 0.2;  // Top 20%\nconst threshold_short = sorted.length * 0.8;  // Bottom 20%\n\nreturn sorted.map((i, idx) => {\n  const d = i.json;\n  let signal = 0;\n  let signal_strength = 0;\n  \n  if (idx < threshold_long) {\n    signal = 1;  // Long\n    signal_strength = 1.0 - (idx / threshold_long) * 0.3;\n  } else if (idx >= threshold_short) {\n    signal = -1;  // Short\n    signal_strength = ((idx - threshold_short) / (sorted.length - threshold_short)) * 0.3 + 0.7;\n  }\n  \n  return {\n    symbol: d.symbol,\n    strategy_type: 'momentum',\n    signal,\n    signal_strength,\n    z_score: 0,\n    momentum_score: d.momentum_score,\n    rsi: d.rsi,\n    realized_vol: d.realized_vol,\n    timestamp: d.timestamp\n  };\n}).filter(s => s.signal !== 0);"
+        "functionCode": "const sorted = items.sort((a,b) => b.json.momentum_score - a.json.momentum_score);\nconst threshold_long = sorted.length * 0.2;\nconst threshold_short = sorted.length * 0.8;\nreturn sorted.map((i, idx) => {\n  const d = i.json;\n  let signal = 0, signal_strength = 0;\n  if (idx < threshold_long) {\n    signal = 1;\n    signal_strength = 1.0 - (idx / threshold_long) * 0.3;\n  } else if (idx >= threshold_short) {\n    signal = -1;\n    signal_strength = ((idx - threshold_short) / (sorted.length - threshold_short)) * 0.3 + 0.7;\n  }\n  if (signal === 0) return null;\n  return {json: {symbol: d.symbol, strategy_type: 'momentum', signal, signal_strength, z_score: 0, momentum_score: d.momentum_score, rsi: d.rsi, realized_vol: d.realized_vol, timestamp: d.timestamp}};\n}).filter(s => s !== null);"
       }
     },
     {
       "name": "Statistical Arbitrage Signals",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [600, 250],
       "parameters": {
-        "jsCode": "// Statistical Arbitrage: Predefined pairs with z-score\nconst pairs = [\n  { long: 'MSFT', short: 'GOOGL' },\n  { long: 'JPM', short: 'BAC' },\n  { long: 'XOM', short: 'CVX' },\n  { long: 'TSLA', short: 'GOOGL' },\n  { long: 'NVDA', short: 'AMD' }\n];\n\nconst indicators = $input.all();\nconst symbolMap = {};\nindicators.forEach(i => { symbolMap[i.json.symbol] = i.json; });\n\nconst results = [];\n\npairs.forEach(pair => {\n  if (!symbolMap[pair.long] || !symbolMap[pair.short]) return;\n  \n  const longPrice = symbolMap[pair.long].current_price;\n  const shortPrice = symbolMap[pair.short].current_price;\n  \n  // Simple z-score: (spread - mean) / std\n  const spread = longPrice - shortPrice;\n  const z_score = Math.random() * 4 - 2;  // Placeholder: real calculation would use historical spreads\n  \n  let signal = 0;\n  if (z_score > 2) signal = -1;  // Short spread\n  if (z_score < -2) signal = 1;   // Long spread\n  \n  if (signal !== 0) {\n    results.push({\n      symbol: pair.long + '/' + pair.short,\n      strategy_type: 'statistical_arbitrage',\n      signal,\n      signal_strength: Math.abs(z_score) / 3,\n      z_score,\n      momentum_score: 0,\n      rsi: 50,\n      realized_vol: 0.015,\n      timestamp: new Date().toISOString()\n    });\n  }\n});\n\nreturn results;"
+        "functionCode": "const pairs = [{long: 'MSFT', short: 'GOOGL'}, {long: 'JPM', short: 'BAC'}, {long: 'XOM', short: 'CVX'}, {long: 'TSLA', short: 'GOOGL'}, {long: 'NVDA', short: 'AMD'}];\nconst symbolMap = {};\nitems.forEach(i => { symbolMap[i.json.symbol] = i.json; });\nconst results = [];\npairs.forEach(pair => {\n  if (!symbolMap[pair.long] || !symbolMap[pair.short]) return;\n  const longPrice = symbolMap[pair.long].current_price;\n  const shortPrice = symbolMap[pair.short].current_price;\n  const z_score = Math.random() * 4 - 2;\n  let signal = 0;\n  if (z_score > 2) signal = -1;\n  if (z_score < -2) signal = 1;\n  if (signal !== 0) {\n    results.push({json: {symbol: pair.long + '/' + pair.short, strategy_type: 'statistical_arbitrage', signal, signal_strength: Math.abs(z_score) / 3, z_score, momentum_score: 0, rsi: 50, realized_vol: 0.015, timestamp: new Date().toISOString()}});\n  }\n});\nreturn results;"
       }
     },
     {
       "name": "Merge All Signals",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [800, 50],
       "parameters": {
-        "jsCode": "// Combine signals from all strategies\nconst meanReversion = $('Mean Reversion Signals').all();\nconst momentum = $('Momentum Signals').all();\nconst statArb = $('Statistical Arbitrage Signals').all();\n\nconst allSignals = [\n  ...meanReversion.map(m => m.json),\n  ...momentum.map(m => m.json),\n  ...statArb.map(m => m.json)\n];\n\n// Add position sizing (volatility-adjusted)\nreturn allSignals.map(sig => ({\n  ...sig,\n  recommended_size: (0.01 / sig.realized_vol) * Math.abs(sig.signal) * sig.signal_strength\n}));"
+        "functionCode": "return items.map(item => {\n  const sig = item.json;\n  return {json: {...sig, recommended_size: (0.01 / sig.realized_vol) * Math.abs(sig.signal) * sig.signal_strength}};\n});"
       }
     },
     {

@@ -13,20 +13,20 @@
     },
     {
       "name": "Generate Run ID",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [200, 0],
       "parameters": {
-        "jsCode": "const run_id = 'INGEST-' + Date.now() + '-' + Math.random().toString(36).substring(7);\nreturn { run_id, timestamp: new Date().toISOString() };"
+        "functionCode": "const run_id = 'INGEST-' + Date.now() + '-' + Math.random().toString(36).substring(7);\nreturn [{ json: { run_id, timestamp: new Date().toISOString() } }];"
       }
     },
     {
       "name": "Fetch Polygon API - Batch Symbols",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [400, 0],
       "parameters": {
-        "jsCode": "// Predefined symbols for trading engine\nconst symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'BAC', 'WFC', 'XOM', 'CVX', 'MCD', 'NKE', 'COST'];\nreturn symbols.map(s => ({ symbol: s }));"
+        "functionCode": "const symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'BAC', 'WFC', 'XOM', 'CVX', 'MCD', 'NKE', 'COST'];\nreturn symbols.map(s => ({ json: { symbol: s } }));"
       }
     },
     {
@@ -43,11 +43,11 @@
     },
     {
       "name": "Transform Price Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [800, 0],
       "parameters": {
-        "jsCode": "// Extract and normalize price data from Alpha Vantage\nconst data = $input.all();\nreturn data.map(item => {\n  const symbol = item.json.symbol;\n  const response = item.json.body || item.json;\n  \n  // Alpha Vantage returns time series data, get the most recent day\n  const timeSeries = response['Time Series (Daily)'] || {};\n  const dates = Object.keys(timeSeries).sort().reverse();\n  \n  if (dates.length === 0) {\n    return null;\n  }\n  \n  const latestDate = dates[0];\n  const priceData = timeSeries[latestDate];\n  \n  return {\n    symbol: symbol,\n    timestamp: new Date().toISOString(),\n    close: parseFloat(priceData['4. close']) || 0,\n    volume: parseInt(priceData['5. volume']) || 0,\n    open: parseFloat(priceData['1. open']) || 0,\n    high: parseFloat(priceData['2. high']) || 0,\n    low: parseFloat(priceData['3. low']) || 0,\n    ingestion_run_id: '{{$json.run_id}}'\n  };\n}).filter(d => d && d.close > 0);"
+        "functionCode": "return items.map(item => {\n  const symbol = item.json.symbol;\n  const response = item.json;\n  \n  const timeSeries = response['Time Series (Daily)'] || {};\n  const dates = Object.keys(timeSeries).sort().reverse();\n  \n  if (dates.length === 0) {\n    return null;\n  }\n  \n  const latestDate = dates[0];\n  const priceData = timeSeries[latestDate];\n  \n  return {\n    json: {\n      symbol: symbol,\n      timestamp: new Date().toISOString(),\n      close: parseFloat(priceData['4. close']) || 0,\n      volume: parseInt(priceData['5. volume']) || 0,\n      open: parseFloat(priceData['1. open']) || 0,\n      high: parseFloat(priceData['2. high']) || 0,\n      low: parseFloat(priceData['3. low']) || 0\n    }\n  };\n}).filter(d => d && d.json.close > 0);"
       }
     },
     {
@@ -74,11 +74,11 @@
     },
     {
       "name": "Error Handler",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [1000, 200],
       "parameters": {
-        "jsCode": "// Log error for manual review\nreturn { status: 'failed', error: '{{$error.message}}', run_id: '{{$json.run_id}}', timestamp: new Date().toISOString() };"
+        "functionCode": "return [{ json: { status: 'failed', error: items[0]?.json?.error || 'Unknown error', timestamp: new Date().toISOString() } }];"
       },
       "onError": "stopExecution"
     }

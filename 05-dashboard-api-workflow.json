@@ -7,7 +7,8 @@
       "typeVersion": 1,
       "position": [0, 0],
       "parameters": {
-        "path": "trading-dashboard",\n        "httpMethod": "GET",
+        "path": "trading-dashboard",
+        "httpMethod": "GET",
         "responseMode": "responseNode"
       }
     },
@@ -42,7 +43,53 @@
       "position": [200, 200],
       "parameters": {
         "dataTableName": "signals",
-        "mode": "select",\n        "orderBy": "timestamp DESC",\n        "limit": 50\n      }\n    },\n    {\n      "name": "Load Strategy Breakdown",\n      "type": "n8n-nodes-base.dataTable",\n      "typeVersion": 2,\n      "position": [200, 300],\n      "parameters": {\n        "dataTableName": "strategy_breakdown",\n        "mode": "select",\n        "orderBy": "timestamp DESC",\n        "limit": 5\n      }\n    },\n    {\n      "name": "Load Recent Trades",\n      "type": "n8n-nodes-base.dataTable",\n      "typeVersion": 2,\n      "position": [200, 400],\n      "parameters": {\n        "dataTableName": "trade_log",\n        "mode": "select",\n        "orderBy": "timestamp DESC",\n        "limit": 20\n      }\n    },\n    {\n      "name": "Load Volatility Data",\n      "type": "n8n-nodes-base.dataTable",\n      "typeVersion": 2,\n      "position": [200, 500],\n      "parameters": {\n        "dataTableName": "market_prices",\n        "mode": "select",\n        "limit": 100\n      }\n    },\n    {\n      "name": "Assemble Dashboard JSON",\n      "type": "n8n-nodes-base.code",\n      "typeVersion": 2,\n      "position": [400, 250],\n      "parameters": {\n        "jsCode": "const portfolio = $('Load Portfolio Summary').all()[0]?.json || {};\nconst topMovers = $('Load Top Movers').all().map(m => m.json);\nconst signals = $('Load Active Signals').all().map(s => s.json);\nconst strategies = $('Load Strategy Breakdown').all().map(s => s.json);\nconst trades = $('Load Recent Trades').all().map(t => t.json);\nconst prices = $('Load Volatility Data').all().map(p => p.json);\n\n// Calculate volatility by symbol\nconst volatilityMap = {};\nconst priceMap = {};\nprices.forEach(p => {\n  if (!priceMap[p.symbol]) priceMap[p.symbol] = [];\n  priceMap[p.symbol].push(parseFloat(p.close));\n});\n\nfor (const symbol in priceMap) {\n  const closes = priceMap[symbol];\n  const returns = [];\n  for (let i = 1; i < closes.length; i++) {\n    returns.push((closes[i] - closes[i-1]) / closes[i-1]);\n  }\n  const mean = returns.reduce((a,b) => a+b) / returns.length;\n  const variance = returns.reduce((sq, r) => sq + Math.pow(r - mean, 2), 0) / returns.length;\n  volatilityMap[symbol] = Math.sqrt(variance) * 100;\n}\n\nreturn {\n  metadata: {\n    timestamp: new Date().toISOString(),\n    version: \"1.0\"\n  },\n  portfolio: {\n    total_value: portfolio.total_portfolio_value || 100000,\n    unrealized_pnl: portfolio.total_unrealized_pnl || 0,\n    realized_pnl: portfolio.realized_pnl || 0,\n    sharpe_ratio: portfolio.sharpe_ratio || 0,\n    max_drawdown: portfolio.max_drawdown || 0,\n    win_rate: portfolio.win_rate || 0,\n    cagr: portfolio.cagr || 0,\n    num_positions: portfolio.num_positions || 0,\n    num_trades: portfolio.num_trades || 0\n  },\n  top_movers: topMovers.slice(0, 5).map(m => ({\n    symbol: m.symbol,\n    pnl: m.unrealized_pnl || 0,\n    pnl_pct: ((m.unrealized_pnl || 0) / (m.position_value || 1)) * 100,\n    quantity: m.quantity,\n    entry_price: m.entry_price,\n    current_price: m.current_price,\n    strategy: m.strategy_type\n  })),\n  signals_summary: {\n    total_active: signals.length,\n    by_strategy: {\n      mean_reversion: signals.filter(s => s.strategy_type === 'mean_reversion').length,\n      momentum: signals.filter(s => s.strategy_type === 'momentum').length,\n      statistical_arbitrage: signals.filter(s => s.strategy_type === 'statistical_arbitrage').length\n    },\n    latest: signals.slice(0, 10).map(s => ({\n      symbol: s.symbol,\n      strategy: s.strategy_type,\n      signal: s.signal === 1 ? 'LONG' : 'SHORT',\n      strength: s.signal_strength\n    }))\n  },\n  strategy_breakdown: strategies.map(s => ({\n    strategy: s.strategy_type,\n    positions: s.num_positions,\n    value: s.total_position_value,\n    unrealized_pnl: s.total_unrealized_pnl\n  })),\n  recent_trades: trades.slice(0, 10).map(t => ({\n    symbol: t.symbol,\n    side: t.side,\n    quantity: t.quantity,\n    price: t.price,\n    strategy: t.strategy_type,\n    timestamp: t.timestamp\n  })),\n  volatility: {\n    avg: Object.values(volatilityMap).reduce((a,b) => a+b) / Object.keys(volatilityMap).length,\n    by_symbol: Object.keys(volatilityMap).slice(0, 10).map(s => ({ symbol: s, vol: volatilityMap[s] }))\n  }\n};"
+        "mode": "select",
+        "orderBy": "timestamp DESC",
+        "limit": 50
+      }
+    },
+    {
+      "name": "Load Strategy Breakdown",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "parameters": {
+        "dataTableName": "strategy_breakdown",
+        "mode": "select",
+        "orderBy": "timestamp DESC",
+        "limit": 5
+      }
+    },
+    {
+      "name": "Load Recent Trades",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [200, 400],
+      "parameters": {
+        "dataTableName": "trade_log",
+        "mode": "select",
+        "orderBy": "timestamp DESC",
+        "limit": 20
+      }
+    },
+    {
+      "name": "Load Volatility Data",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [200, 500],
+      "parameters": {
+        "dataTableName": "market_prices",
+        "mode": "select",
+        "limit": 100
+      }
+    },
+    {
+      "name": "Assemble Dashboard JSON",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [400, 250],
+      "parameters": {
+        "functionCode": "const portfolio = items[0]?.json || {}; const topMovers = items[1]?.json ? [items[1].json] : []; const signals = items[2]?.json ? [items[2].json] : []; const strategies = items[3]?.json ? [items[3].json] : []; const trades = items[4]?.json ? [items[4].json] : []; const prices = items[5]?.json ? [items[5].json] : []; const volatilityMap = {}; const priceMap = {}; prices.forEach(p => { if (!priceMap[p.symbol]) priceMap[p.symbol] = []; priceMap[p.symbol].push(parseFloat(p.close)); }); for (const symbol in priceMap) { const closes = priceMap[symbol]; const returns = []; for (let i = 1; i < closes.length; i++) { returns.push((closes[i] - closes[i-1]) / closes[i-1]); } const mean = returns.reduce((a,b) => a+b) / returns.length; const variance = returns.reduce((sq, r) => sq + Math.pow(r - mean, 2), 0) / returns.length; volatilityMap[symbol] = Math.sqrt(variance) * 100; } return [{json: {metadata: {timestamp: new Date().toISOString(), version: '1.0'}, portfolio: {total_value: portfolio.total_portfolio_value || 100000, unrealized_pnl: portfolio.total_unrealized_pnl || 0, realized_pnl: portfolio.realized_pnl || 0, sharpe_ratio: portfolio.sharpe_ratio || 0, max_drawdown: portfolio.max_drawdown || 0, win_rate: portfolio.win_rate || 0, cagr: portfolio.cagr || 0, num_positions: portfolio.num_positions || 0, num_trades: portfolio.num_trades || 0}, top_movers: topMovers.slice(0, 5), signals_summary: {total_active: signals.length}, strategy_breakdown: strategies, recent_trades: trades.slice(0, 10), volatility: {avg: 0, by_symbol: []}}}];"
       }
     },
     {
