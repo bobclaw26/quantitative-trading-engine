@@ -17,20 +17,20 @@
       "typeVersion": 1,
       "position": [200, 0],
       "parameters": {
-        "functionCode": "const run_id = 'INGEST-' + Date.now() + '-' + Math.random().toString(36).substring(7);\nreturn [{ json: { run_id, timestamp: new Date().toISOString() } }];"
+        "functionCode": "const run_id = 'INGEST-' + Date.now() + '-' + Math.random().toString(36).substring(7); return [{json: {run_id, timestamp: new Date().toISOString()}}];"
       }
     },
     {
-      "name": "Fetch Polygon API - Batch Symbols",
+      "name": "Generate Symbols List",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [400, 0],
       "parameters": {
-        "functionCode": "const symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'BAC', 'WFC', 'XOM', 'CVX', 'MCD', 'NKE', 'COST'];\nreturn symbols.map(s => ({ json: { symbol: s } }));"
+        "functionCode": "const symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'BAC', 'WFC', 'XOM', 'CVX', 'MCD', 'NKE', 'COST']; return symbols.map(s => ({json: {symbol: s}}));"
       }
     },
     {
-      "name": "HTTP Request - Alpha Vantage Prices",
+      "name": "Fetch Alpha Vantage Data",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [600, 0],
@@ -47,7 +47,7 @@
       "typeVersion": 1,
       "position": [800, 0],
       "parameters": {
-        "functionCode": "return items.map(item => {\n  const symbol = item.json.symbol;\n  const response = item.json;\n  \n  const timeSeries = response['Time Series (Daily)'] || {};\n  const dates = Object.keys(timeSeries).sort().reverse();\n  \n  if (dates.length === 0) {\n    return null;\n  }\n  \n  const latestDate = dates[0];\n  const priceData = timeSeries[latestDate];\n  \n  return {\n    json: {\n      symbol: symbol,\n      timestamp: new Date().toISOString(),\n      close: parseFloat(priceData['4. close']) || 0,\n      volume: parseInt(priceData['5. volume']) || 0,\n      open: parseFloat(priceData['1. open']) || 0,\n      high: parseFloat(priceData['2. high']) || 0,\n      low: parseFloat(priceData['3. low']) || 0\n    }\n  };\n}).filter(d => d && d.json.close > 0);"
+        "functionCode": "return items.map(item => {const symbol = item.json.symbol; const response = item.json; const timeSeries = response['Time Series (Daily)'] || {}; const dates = Object.keys(timeSeries).sort().reverse(); if (dates.length === 0) return null; const latestDate = dates[0]; const priceData = timeSeries[latestDate]; return {json: {symbol: symbol, timestamp: new Date().toISOString(), close: parseFloat(priceData['4. close']) || 0, volume: parseInt(priceData['5. volume']) || 0, open: parseFloat(priceData['1. open']) || 0, high: parseFloat(priceData['2. high']) || 0, low: parseFloat(priceData['3. low']) || 0}};}).filter(d => d && d.json.close > 0);"
       }
     },
     {
@@ -62,50 +62,51 @@
       }
     },
     {
-      "name": "Log Ingestion Status",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 2,
+      "name": "Count Inserted Records",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [1200, 0],
       "parameters": {
-        "dataTableName": "ingestion_logs",
-        "mode": "insert",
-        "columns": ["run_id", "timestamp", "status", "records_inserted", "error_message"]
+        "functionCode": "const count = items.length; return [{json: {records_inserted: count, status: 'success', timestamp: new Date().toISOString()}}];"
       }
     },
     {
-      "name": "Error Handler",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [1000, 200],
+      "name": "Log Ingestion Status",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 2,
+      "position": [1400, 0],
       "parameters": {
-        "functionCode": "return [{ json: { status: 'failed', error: items[0]?.json?.error || 'Unknown error', timestamp: new Date().toISOString() } }];"
-      },
-      "onError": "stopExecution"
+        "dataTableName": "ingestion_logs",
+        "mode": "insert",
+        "columns": ["run_id", "timestamp", "status", "records_inserted"]
+      }
     }
   ],
   "connections": {
     "Trigger - Every 5 minutes": {
-      "main": [[{ "node": "Generate Run ID", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Generate Run ID", "branch": 0, "index": 0}]]
     },
     "Generate Run ID": {
-      "main": [[{ "node": "Fetch Polygon API - Batch Symbols", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Generate Symbols List", "branch": 0, "index": 0}]]
     },
-    "Fetch Polygon API - Batch Symbols": {
-      "main": [[{ "node": "HTTP Request - Polygon Prices", "branch": 0, "index": 0 }]]
+    "Generate Symbols List": {
+      "main": [[{"node": "Fetch Alpha Vantage Data", "branch": 0, "index": 0}]]
     },
-    "HTTP Request - Polygon Prices": {
-      "main": [[{ "node": "Transform Price Data", "branch": 0, "index": 0 }]]
+    "Fetch Alpha Vantage Data": {
+      "main": [[{"node": "Transform Price Data", "branch": 0, "index": 0}]]
     },
     "Transform Price Data": {
-      "main": [[{ "node": "Insert into market_prices Table", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Insert into market_prices Table", "branch": 0, "index": 0}]]
     },
     "Insert into market_prices Table": {
-      "main": [[{ "node": "Log Ingestion Status", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Count Inserted Records", "branch": 0, "index": 0}]]
+    },
+    "Count Inserted Records": {
+      "main": [[{"node": "Log Ingestion Status", "branch": 0, "index": 0}]]
     }
   },
   "settings": {
-    "saveExecutionProgress": true,
-    "errorHandler": "Error Handler"
+    "saveExecutionProgress": true
   },
   "active": false
 }

@@ -89,7 +89,7 @@
       "typeVersion": 1,
       "position": [400, 250],
       "parameters": {
-        "functionCode": "const portfolio = items[0]?.json || {}; const topMovers = items[1]?.json ? [items[1].json] : []; const signals = items[2]?.json ? [items[2].json] : []; const strategies = items[3]?.json ? [items[3].json] : []; const trades = items[4]?.json ? [items[4].json] : []; const prices = items[5]?.json ? [items[5].json] : []; const volatilityMap = {}; const priceMap = {}; prices.forEach(p => { if (!priceMap[p.symbol]) priceMap[p.symbol] = []; priceMap[p.symbol].push(parseFloat(p.close)); }); for (const symbol in priceMap) { const closes = priceMap[symbol]; const returns = []; for (let i = 1; i < closes.length; i++) { returns.push((closes[i] - closes[i-1]) / closes[i-1]); } const mean = returns.reduce((a,b) => a+b) / returns.length; const variance = returns.reduce((sq, r) => sq + Math.pow(r - mean, 2), 0) / returns.length; volatilityMap[symbol] = Math.sqrt(variance) * 100; } return [{json: {metadata: {timestamp: new Date().toISOString(), version: '1.0'}, portfolio: {total_value: portfolio.total_portfolio_value || 100000, unrealized_pnl: portfolio.total_unrealized_pnl || 0, realized_pnl: portfolio.realized_pnl || 0, sharpe_ratio: portfolio.sharpe_ratio || 0, max_drawdown: portfolio.max_drawdown || 0, win_rate: portfolio.win_rate || 0, cagr: portfolio.cagr || 0, num_positions: portfolio.num_positions || 0, num_trades: portfolio.num_trades || 0}, top_movers: topMovers.slice(0, 5), signals_summary: {total_active: signals.length}, strategy_breakdown: strategies, recent_trades: trades.slice(0, 10), volatility: {avg: 0, by_symbol: []}}}];"
+        "functionCode": "const portfolio = items[0]?.json || {}; const topMovers = items[1]?.json ? [items[1].json] : []; const signals = items[2]?.json ? [items[2].json] : []; const strategies = items[3]?.json ? [items[3].json] : []; const trades = items[4]?.json ? [items[4].json] : []; const prices = items[5]?.json ? [items[5].json] : []; const volatilityMap = {}; const priceMap = {}; prices.forEach(p => {if (!priceMap[p.symbol]) priceMap[p.symbol] = []; priceMap[p.symbol].push(parseFloat(p.close))}); for (const symbol in priceMap) {const closes = priceMap[symbol]; const returns = []; for (let i = 1; i < closes.length; i++) {returns.push((closes[i] - closes[i-1]) / closes[i-1])}; const mean = returns.reduce((a,b) => a+b) / returns.length; const variance = returns.reduce((sq, r) => sq + Math.pow(r - mean, 2), 0) / returns.length; volatilityMap[symbol] = Math.sqrt(variance) * 100}; const avgVol = Object.values(volatilityMap).length > 0 ? Object.values(volatilityMap).reduce((a,b) => a+b) / Object.keys(volatilityMap).length : 0; return [{json: {metadata: {timestamp: new Date().toISOString(), version: '1.0'}, portfolio: {total_value: portfolio.total_portfolio_value || 100000, unrealized_pnl: portfolio.total_unrealized_pnl || 0, realized_pnl: portfolio.realized_pnl || 0, sharpe_ratio: portfolio.sharpe_ratio || 0, max_drawdown: portfolio.max_drawdown || 0, win_rate: portfolio.win_rate || 0, cagr: portfolio.cagr || 0, num_positions: portfolio.num_positions || 0, num_trades: portfolio.num_trades || 0}, top_movers: topMovers.slice(0, 5), signals_summary: {total_active: signals.length}, strategy_breakdown: strategies, recent_trades: trades.slice(0, 10), volatility: {avg: avgVol, by_symbol: Object.entries(volatilityMap).slice(0, 10).map(([symbol, vol]) => ({symbol, vol}))}}}];"
       }
     },
     {
@@ -107,28 +107,28 @@
   ],
   "connections": {
     "Webhook - GET /dashboard": {
-      "main": [[{ "node": "Load Portfolio Summary", "branch": 0, "index": 0 }, { "node": "Load Top Movers", "branch": 0, "index": 0 }, { "node": "Load Active Signals", "branch": 0, "index": 0 }, { "node": "Load Strategy Breakdown", "branch": 0, "index": 0 }, { "node": "Load Recent Trades", "branch": 0, "index": 0 }, { "node": "Load Volatility Data", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Load Portfolio Summary", "branch": 0, "index": 0}, {"node": "Load Top Movers", "branch": 0, "index": 0}, {"node": "Load Active Signals", "branch": 0, "index": 0}, {"node": "Load Strategy Breakdown", "branch": 0, "index": 0}, {"node": "Load Recent Trades", "branch": 0, "index": 0}, {"node": "Load Volatility Data", "branch": 0, "index": 0}]]
     },
     "Load Portfolio Summary": {
-      "main": [[{ "node": "Assemble Dashboard JSON", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Assemble Dashboard JSON", "branch": 0, "index": 0}]]
     },
     "Load Top Movers": {
-      "main": [[{ "node": "Assemble Dashboard JSON", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Assemble Dashboard JSON", "branch": 0, "index": 1}]]
     },
     "Load Active Signals": {
-      "main": [[{ "node": "Assemble Dashboard JSON", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Assemble Dashboard JSON", "branch": 0, "index": 2}]]
     },
     "Load Strategy Breakdown": {
-      "main": [[{ "node": "Assemble Dashboard JSON", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Assemble Dashboard JSON", "branch": 0, "index": 3}]]
     },
     "Load Recent Trades": {
-      "main": [[{ "node": "Assemble Dashboard JSON", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Assemble Dashboard JSON", "branch": 0, "index": 4}]]
     },
     "Load Volatility Data": {
-      "main": [[{ "node": "Assemble Dashboard JSON", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Assemble Dashboard JSON", "branch": 0, "index": 5}]]
     },
     "Assemble Dashboard JSON": {
-      "main": [[{ "node": "Respond with JSON", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Respond with JSON", "branch": 0, "index": 0}]]
     }
   },
   "settings": {

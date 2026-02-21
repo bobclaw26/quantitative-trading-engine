@@ -61,25 +61,25 @@
       "name": "Match Signals to Prices & Execute",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [400, 100],
+      "position": [400, 150],
       "parameters": {
-        "functionCode": "const positions = items[0]?.json ? [items[0].json] : [];\nconst signals = items.slice(1)?.map(s => s.json) || [];\nconst prices = items[2]?.json ? [items[2].json] : [];\nconst portfolio = items[3]?.json || { total_portfolio_value: 100000 };\nconst priceMap = {};\nprices.forEach(p => { priceMap[p.symbol] = parseFloat(p.close); });\nconst positionMap = {};\npositions.forEach(p => { positionMap[p.symbol] = p; });\nconst trades = [];\nconst timestamp = new Date().toISOString();\nconst capital = portfolio.total_portfolio_value * 0.01;\nsignals.forEach(sig => {\n  const symbol = sig.symbol;\n  const currentPrice = priceMap[symbol];\n  if (!currentPrice) return;\n  const existingPos = positionMap[symbol];\n  const position_size = capital / currentPrice * sig.signal_strength;\n  if (sig.signal === 1 && !existingPos) {\n    trades.push({symbol, side: 'BUY', quantity: Math.floor(position_size), price: currentPrice, strategy_type: sig.strategy_type, timestamp});\n  } else if (sig.signal === -1 && !existingPos) {\n    trades.push({symbol, side: 'SELL', quantity: Math.floor(position_size), price: currentPrice, strategy_type: sig.strategy_type, timestamp});\n  } else if (sig.signal === 0 && existingPos) {\n    trades.push({symbol, side: existingPos.quantity > 0 ? 'SELL' : 'BUY', quantity: Math.abs(existingPos.quantity), price: currentPrice, strategy_type: existingPos.strategy_type, timestamp});\n  }\n});\nreturn trades.map(t => ({json: t}));"
+        "functionCode": "const positions = items[0]?.json ? [items[0].json] : []; const signals = items[1]?.json ? [items[1].json] : []; const prices = items[2]?.json ? [items[2].json] : []; const portfolio = items[3]?.json || {total_portfolio_value: 100000}; const priceMap = {}; prices.forEach(p => {priceMap[p.symbol] = parseFloat(p.close)}); const positionMap = {}; positions.forEach(p => {positionMap[p.symbol] = p}); const trades = []; const timestamp = new Date().toISOString(); const capital = portfolio.total_portfolio_value * 0.01; signals.forEach(sig => {const symbol = sig.symbol; const currentPrice = priceMap[symbol]; if (!currentPrice) return; const existingPos = positionMap[symbol]; const position_size = capital / currentPrice * sig.signal_strength; if (sig.signal === 1 && !existingPos) {trades.push({symbol, side: 'BUY', quantity: Math.floor(position_size), price: currentPrice, strategy_type: sig.strategy_type, timestamp})} else if (sig.signal === -1 && !existingPos) {trades.push({symbol, side: 'SELL', quantity: Math.floor(position_size), price: currentPrice, strategy_type: sig.strategy_type, timestamp})} else if (sig.signal === 0 && existingPos) {trades.push({symbol, side: existingPos.quantity > 0 ? 'SELL' : 'BUY', quantity: Math.abs(existingPos.quantity), price: currentPrice, strategy_type: existingPos.strategy_type, timestamp})}}); return trades.map(t => ({json: t}));"
       }
     },
     {
       "name": "Update Positions & Log Trades",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [600, 100],
+      "position": [600, 150],
       "parameters": {
-        "functionCode": "const positionUpdates = [];\nconst tradeLog = [];\nitems.forEach(item => {\n  const t = item.json;\n  tradeLog.push({symbol: t.symbol, side: t.side, quantity: t.quantity, price: t.price, pnl: 0, strategy_type: t.strategy_type, timestamp: t.timestamp});\n  if (t.side === 'BUY') {\n    positionUpdates.push({symbol: t.symbol, quantity: t.quantity, entry_price: t.price, current_price: t.price, unrealized_pnl: 0, position_value: t.quantity * t.price, strategy_type: t.strategy_type, entry_date: new Date().toISOString()});\n  } else if (t.side === 'SELL') {\n    positionUpdates.push({symbol: t.symbol + '_CLOSED', quantity: 0, entry_price: t.price, current_price: t.price, unrealized_pnl: 0, position_value: 0, strategy_type: t.strategy_type, entry_date: new Date().toISOString()});\n  }\n});\nreturn [{json: {positionUpdates, tradeLog}}];"
+        "functionCode": "const positionUpdates = []; const tradeLog = []; items.forEach(item => {const t = item.json; tradeLog.push({symbol: t.symbol, side: t.side, quantity: t.quantity, price: t.price, pnl: 0, strategy_type: t.strategy_type, timestamp: t.timestamp}); if (t.side === 'BUY') {positionUpdates.push({symbol: t.symbol, quantity: t.quantity, entry_price: t.price, current_price: t.price, unrealized_pnl: 0, position_value: t.quantity * t.price, strategy_type: t.strategy_type, entry_date: new Date().toISOString()})} else if (t.side === 'SELL') {positionUpdates.push({symbol: t.symbol + '_CLOSED', quantity: 0, entry_price: t.price, current_price: t.price, unrealized_pnl: 0, position_value: 0, strategy_type: t.strategy_type, entry_date: new Date().toISOString()})}}); return []; "
       }
     },
     {
       "name": "Insert Trade Log",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 2,
-      "position": [800, 0],
+      "position": [800, 50],
       "parameters": {
         "dataTableName": "trade_log",
         "mode": "insert",
@@ -90,47 +90,35 @@
       "name": "Update Positions Table",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 2,
-      "position": [800, 100],
+      "position": [800, 250],
       "parameters": {
         "dataTableName": "paper_positions",
         "mode": "upsert",
         "columns": ["symbol", "quantity", "entry_price", "current_price", "unrealized_pnl", "position_value", "strategy_type", "entry_date"]
       }
-    },
-    {
-      "name": "Update Unrealized PnL",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1000, 100],
-      "parameters": {
-        "jsCode": "// Update current prices for all open positions\nconst prices = $('Load Current Prices').all();\nconst priceMap = {};\nprices.forEach(p => { priceMap[p.json.symbol] = p.json.close; });\n\nconst positions = $('Load Current Positions').all().map(p => p.json);\nreturn positions.map(pos => ({\n  symbol: pos.symbol,\n  quantity: pos.quantity,\n  entry_price: pos.entry_price,\n  current_price: priceMap[pos.symbol] || pos.current_price,\n  unrealized_pnl: (priceMap[pos.symbol] - pos.entry_price) * pos.quantity,\n  position_value: priceMap[pos.symbol] * pos.quantity,\n  strategy_type: pos.strategy_type,\n  entry_date: pos.entry_date\n}));"
-      }
     }
   ],
   "connections": {
     "Trigger - Every 30 minutes": {
-      "main": [[{ "node": "Load Current Positions", "branch": 0, "index": 0 }, { "node": "Load Active Signals", "branch": 0, "index": 0 }, { "node": "Load Current Prices", "branch": 0, "index": 0 }, { "node": "Load Portfolio State", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Load Current Positions", "branch": 0, "index": 0}, {"node": "Load Active Signals", "branch": 0, "index": 0}, {"node": "Load Current Prices", "branch": 0, "index": 0}, {"node": "Load Portfolio State", "branch": 0, "index": 0}]]
     },
     "Load Current Positions": {
-      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Match Signals to Prices & Execute", "branch": 0, "index": 0}]]
     },
     "Load Active Signals": {
-      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Match Signals to Prices & Execute", "branch": 0, "index": 1}]]
     },
     "Load Current Prices": {
-      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }, { "node": "Update Unrealized PnL", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Match Signals to Prices & Execute", "branch": 0, "index": 2}]]
     },
     "Load Portfolio State": {
-      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Match Signals to Prices & Execute", "branch": 0, "index": 3}]]
     },
     "Match Signals to Prices & Execute": {
-      "main": [[{ "node": "Update Positions & Log Trades", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Update Positions & Log Trades", "branch": 0, "index": 0}]]
     },
     "Update Positions & Log Trades": {
-      "main": [[{ "node": "Insert Trade Log", "branch": 0, "index": 0 }, { "node": "Update Positions Table", "branch": 0, "index": 0 }]]
-    },
-    "Update Positions Table": {
-      "main": [[{ "node": "Update Unrealized PnL", "branch": 0, "index": 0 }]]
+      "main": [[{"node": "Insert Trade Log", "branch": 0, "index": 0}, {"node": "Update Positions Table", "branch": 0, "index": 0}]]
     }
   },
   "settings": {
