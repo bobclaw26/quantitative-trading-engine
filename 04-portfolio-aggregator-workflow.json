@@ -12,107 +12,83 @@
       }
     },
     {
-      "name": "Simulate Positions",
-      "type": "n8n-nodes-base.function",
+      "name": "Load All Positions",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 1,
       "position": [200, 0],
       "parameters": {
-        "functionCode": "return [{json: {symbol: 'AAPL', quantity: 100, entry_price: 145, current_price: 150, unrealized_pnl: 500, position_value: 15000, strategy_type: 'mean_reversion'}}];"
+        "operation": "executeQuery",
+        "query": "SELECT * FROM paper_positions;",
+        "datasource": "PostgreSQL"
       }
     },
     {
-      "name": "Simulate Trade History",
-      "type": "n8n-nodes-base.function",
+      "name": "Load Trade History",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 1,
       "position": [200, 100],
       "parameters": {
-        "functionCode": "return [{json: {symbol: 'MSFT', side: 'BUY', quantity: 50, price: 300, pnl: 0, strategy_type: 'momentum', timestamp: new Date().toISOString()}}];"
+        "operation": "executeQuery",
+        "query": "SELECT * FROM trade_log ORDER BY timestamp DESC LIMIT 1000;",
+        "datasource": "PostgreSQL"
       }
     },
     {
       "name": "Calculate Portfolio Metrics",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [400, 0],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 50],
       "parameters": {
-        "functionCode": "const positions = items[0]?.json ? [items[0].json] : []; const trades = items[1]?.json ? [items[1].json] : []; const initial_capital = 100000; let total_unrealized_pnl = 0; positions.forEach(pos => {total_unrealized_pnl += pos.unrealized_pnl || 0}); const realized_pnl = 0; const total_portfolio_value = initial_capital + realized_pnl + total_unrealized_pnl; const sharpe_ratio = 1.2; const max_drawdown = -5.5; const win_rate = 62.5; const cagr = 8.5; return [{json: {total_portfolio_value: Math.round(total_portfolio_value * 100) / 100, total_unrealized_pnl: Math.round(total_unrealized_pnl * 100) / 100, realized_pnl: Math.round(realized_pnl * 100) / 100, sharpe_ratio: Math.round(sharpe_ratio * 100) / 100, max_drawdown: Math.round(max_drawdown * 100) / 100, win_rate: Math.round(win_rate * 100) / 100, cagr: Math.round(cagr * 100) / 100, num_positions: positions.length, num_trades: trades.length, timestamp: new Date().toISOString()}}];"
+        "jsCode": "const positionsRaw = $('Load All Positions').all() || [];\nconst tradesRaw = $('Load Trade History').all() || [];\n\nconst positions = positionsRaw.map(p => p.json);\nconst trades = tradesRaw.map(t => t.json);\n\nconst initial_capital = 100000;\nlet total_portfolio_value = initial_capital;\nlet total_unrealized_pnl = 0;\nlet max_portfolio_value = initial_capital;\nlet portfolio_values = [initial_capital];\n\n// Sum unrealized PnL from positions\npositions.forEach(pos => {\n  if (pos.quantity && pos.quantity !== 0 && !pos.symbol.includes('_CLOSED')) {\n    total_unrealized_pnl += pos.unrealized_pnl || 0;\n  }\n});\n\n// Calculate realized PnL from closed trades\nlet realized_pnl = 0;\nconst buyTrades = {};\n\ntrades.forEach(trade => {\n  if (trade.side === 'BUY') {\n    if (!buyTrades[trade.symbol]) buyTrades[trade.symbol] = [];\n    buyTrades[trade.symbol].push(trade);\n  } else if (trade.side === 'SELL') {\n    if (buyTrades[trade.symbol] && buyTrades[trade.symbol].length > 0) {\n      const matchTrade = buyTrades[trade.symbol].shift();\n      const pnl = (trade.price - matchTrade.price) * trade.quantity;\n      realized_pnl += pnl;\n    }\n  }\n});\n\ntotal_portfolio_value = initial_capital + realized_pnl + total_unrealized_pnl;\nmax_portfolio_value = Math.max(...portfolio_values.concat(total_portfolio_value));\n\n// Calculate daily returns for Sharpe\nconst returns = [];\nfor (let i = 1; i < portfolio_values.length; i++) {\n  returns.push((portfolio_values[i] - portfolio_values[i-1]) / portfolio_values[i-1]);\n}\n\nconst mean_return = returns.length > 0 ? returns.reduce((a,b) => a+b) / returns.length : 0;\nconst variance = returns.length > 0 ? returns.reduce((sq, r) => sq + Math.pow(r - mean_return, 2), 0) / returns.length : 0;\nconst std_dev = Math.sqrt(variance);\nconst sharpe_ratio = std_dev > 0 ? (mean_return / std_dev) * Math.sqrt(252) : 0;\n\n// Max Drawdown\nlet max_drawdown = 0;\nlet peak = initial_capital;\nfor (let val of portfolio_values.concat(total_portfolio_value)) {\n  peak = Math.max(peak, val);\n  const drawdown = (val - peak) / peak;\n  max_drawdown = Math.min(max_drawdown, drawdown);\n}\n\n// Win Rate\nconst winningTrades = trades.filter(t => t.pnl > 0).length;\nconst totalTrades = trades.filter(t => t.side === 'SELL').length;\nconst win_rate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;\n\n// CAGR\nconst cagr = ((total_portfolio_value - initial_capital) / initial_capital) * 100;\n\nreturn {\n  total_portfolio_value: Math.round(total_portfolio_value * 100) / 100,\n  total_unrealized_pnl: Math.round(total_unrealized_pnl * 100) / 100,\n  realized_pnl: Math.round(realized_pnl * 100) / 100,\n  sharpe_ratio: Math.round(sharpe_ratio * 100) / 100,\n  max_drawdown: Math.round(max_drawdown * 10000) / 100,\n  win_rate: Math.round(win_rate * 100) / 100,\n  cagr: Math.round(cagr * 100) / 100,\n  num_positions: positions.filter(p => p.quantity && p.quantity !== 0 && !p.symbol.includes('_CLOSED')).length,\n  num_trades: totalTrades,\n  timestamp: new Date().toISOString()\n};"
+      }
+    },
+    {
+      "name": "Insert Portfolio Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [600, 50],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO portfolio_summary (total_portfolio_value, total_unrealized_pnl, realized_pnl, sharpe_ratio, max_drawdown, win_rate, cagr, num_positions, num_trades, timestamp) VALUES ({{total_portfolio_value}}, {{total_unrealized_pnl}}, {{realized_pnl}}, {{sharpe_ratio}}, {{max_drawdown}}, {{win_rate}}, {{cagr}}, {{num_positions}}, {{num_trades}}, '{{timestamp}}');",
+        "datasource": "PostgreSQL"
       }
     },
     {
       "name": "Calculate Strategy Breakdown",
-      "type": "n8n-nodes-base.function",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 200],
+      "parameters": {
+        "jsCode": "const positionsRaw = $('Load All Positions').all() || [];\nconst positions = positionsRaw.map(p => p.json);\nconst breakdown = {};\n\npositions.forEach(pos => {\n  const strategy = pos.strategy_type || 'unknown';\n  if (!breakdown[strategy]) {\n    breakdown[strategy] = { count: 0, total_value: 0, total_unrealized_pnl: 0 };\n  }\n  breakdown[strategy].count += 1;\n  breakdown[strategy].total_value += pos.position_value || 0;\n  breakdown[strategy].total_unrealized_pnl += pos.unrealized_pnl || 0;\n});\n\nreturn Object.keys(breakdown).map(strategy => ({\n  strategy_type: strategy,\n  num_positions: breakdown[strategy].count,\n  total_position_value: Math.round(breakdown[strategy].total_value * 100) / 100,\n  total_unrealized_pnl: Math.round(breakdown[strategy].total_unrealized_pnl * 100) / 100,\n  timestamp: new Date().toISOString()\n}));"
+      }
+    },
+    {
+      "name": "Insert Strategy Breakdown",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 1,
-      "position": [400, 100],
+      "position": [600, 200],
       "parameters": {
-        "functionCode": "const positions = items[0]?.json ? [items[0].json] : []; const breakdown = {}; positions.forEach(pos => {const strategy = pos.strategy_type || 'unknown'; if (!breakdown[strategy]) {breakdown[strategy] = {count: 0, total_value: 0, total_unrealized_pnl: 0}}; breakdown[strategy].count += 1; breakdown[strategy].total_value += pos.position_value || 0; breakdown[strategy].total_unrealized_pnl += pos.unrealized_pnl || 0}); return Object.keys(breakdown).map(strategy => ({json: {strategy_type: strategy, num_positions: breakdown[strategy].count, total_position_value: Math.round(breakdown[strategy].total_value * 100) / 100, total_unrealized_pnl: Math.round(breakdown[strategy].total_unrealized_pnl * 100) / 100, timestamp: new Date().toISOString()}}));"
-      }
-    },
-    {
-      "name": "Format Portfolio Summary",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
-      "position": [600, 0],
-      "parameters": {
-        "mode": "manual",
-        "assignments": {
-          "assignments": [
-            {
-              "id": "0",
-              "name": "portfolio_summary",
-              "type": "expression",
-              "value": "={{$json}}"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Format Strategy Breakdown",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
-      "position": [600, 100],
-      "parameters": {
-        "mode": "manual",
-        "assignments": {
-          "assignments": [
-            {
-              "id": "0",
-              "name": "strategy_breakdown",
-              "type": "expression",
-              "value": "={{$json}}"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Log Portfolio Update",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [800, 50],
-      "parameters": {
-        "functionCode": "console.log(`[PORTFOLIO] Updated metrics at ${new Date().toISOString()}`); return [{json: {status: 'success', timestamp: new Date().toISOString()}}];"
+        "operation": "executeQuery",
+        "query": "INSERT INTO strategy_breakdown (strategy_type, num_positions, total_position_value, total_unrealized_pnl, timestamp) VALUES {{$json | map('[strategy_type, num_positions, total_position_value, total_unrealized_pnl, timestamp]') | join('), (')}} ON CONFLICT (strategy_type, timestamp) DO UPDATE SET num_positions=EXCLUDED.num_positions, total_position_value=EXCLUDED.total_position_value;",
+        "datasource": "PostgreSQL"
       }
     }
   ],
   "connections": {
     "Trigger - Every Hour": {
-      "main": [[{"node": "Simulate Positions", "branch": 0, "index": 0}, {"node": "Simulate Trade History", "branch": 0, "index": 0}]]
+      "main": [[{ "node": "Load All Positions", "branch": 0, "index": 0 }, { "node": "Load Trade History", "branch": 0, "index": 0 }]]
     },
-    "Simulate Positions": {
-      "main": [[{"node": "Calculate Portfolio Metrics", "branch": 0, "index": 0}, {"node": "Calculate Strategy Breakdown", "branch": 0, "index": 0}]]
+    "Load All Positions": {
+      "main": [[{ "node": "Calculate Portfolio Metrics", "branch": 0, "index": 0 }, { "node": "Calculate Strategy Breakdown", "branch": 0, "index": 0 }]]
     },
-    "Simulate Trade History": {
-      "main": [[{"node": "Calculate Portfolio Metrics", "branch": 0, "index": 1}]]
+    "Load Trade History": {
+      "main": [[{ "node": "Calculate Portfolio Metrics", "branch": 0, "index": 0 }]]
     },
     "Calculate Portfolio Metrics": {
-      "main": [[{"node": "Format Portfolio Summary", "branch": 0, "index": 0}]]
+      "main": [[{ "node": "Insert Portfolio Summary", "branch": 0, "index": 0 }]]
     },
     "Calculate Strategy Breakdown": {
-      "main": [[{"node": "Format Strategy Breakdown", "branch": 0, "index": 0}]]
-    },
-    "Format Portfolio Summary": {
-      "main": [[{"node": "Log Portfolio Update", "branch": 0, "index": 0}]]
+      "main": [[{ "node": "Insert Strategy Breakdown", "branch": 0, "index": 0 }]]
     }
   },
   "settings": {

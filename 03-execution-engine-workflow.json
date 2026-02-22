@@ -12,88 +12,125 @@
       }
     },
     {
-      "name": "Simulate Portfolio State",
-      "type": "n8n-nodes-base.function",
+      "name": "Load Current Positions",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 1,
       "position": [200, 0],
       "parameters": {
-        "functionCode": "return [{json: {total_portfolio_value: 100000, positions: [{symbol: 'AAPL', quantity: 100, entry_price: 145}]}}];"
+        "operation": "executeQuery",
+        "query": "SELECT * FROM paper_positions WHERE quantity != 0;",
+        "datasource": "PostgreSQL"
       }
     },
     {
-      "name": "Simulate Signals",
-      "type": "n8n-nodes-base.function",
+      "name": "Load Active Signals",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 1,
       "position": [200, 100],
       "parameters": {
-        "functionCode": "return [{json: {symbol: 'MSFT', signal: 1, signal_strength: 0.8, strategy_type: 'mean_reversion'}}];"
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT ON (symbol) * FROM signals ORDER BY symbol, timestamp DESC;",
+        "datasource": "PostgreSQL"
       }
     },
     {
-      "name": "Simulate Current Prices",
-      "type": "n8n-nodes-base.function",
+      "name": "Load Current Prices",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 1,
       "position": [200, 200],
       "parameters": {
-        "functionCode": "return [{json: {symbol: 'MSFT', close: 315}}];"
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT ON (symbol) symbol, close FROM market_prices ORDER BY symbol, timestamp DESC;",
+        "datasource": "PostgreSQL"
       }
     },
     {
-      "name": "Execute Trades",
-      "type": "n8n-nodes-base.function",
+      "name": "Load Portfolio State",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM portfolio_summary ORDER BY timestamp DESC LIMIT 1;",
+        "datasource": "PostgreSQL"
+      }
+    },
+    {
+      "name": "Match Signals to Prices & Execute",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [400, 100],
       "parameters": {
-        "functionCode": "const portfolio = items[0]?.json; const signals = items[1]?.json; const prices = items[2]?.json; const timestamp = new Date().toISOString(); const capital = (portfolio?.total_portfolio_value || 100000) * 0.01; const trades = []; if (signals && prices) {const position_size = capital / prices.close * (signals.signal_strength || 0.5); if (signals.signal === 1) {trades.push({symbol: signals.symbol, side: 'BUY', quantity: Math.floor(position_size), price: prices.close, strategy_type: signals.strategy_type, timestamp})} else if (signals.signal === -1) {trades.push({symbol: signals.symbol, side: 'SELL', quantity: Math.floor(position_size), price: prices.close, strategy_type: signals.strategy_type, timestamp})}}; return trades.map(t => ({json: t}));"
+        "jsCode": "const positionsData = $('Load Current Positions').all() || [];\nconst signalsData = $('Load Active Signals').all() || [];\nconst pricesData = $('Load Current Prices').all() || [];\nconst portfolioData = $('Load Portfolio State').all() || [];\n\nconst positions = positionsData.map(p => p.json);\nconst signals = signalsData.map(s => s.json);\nconst prices = pricesData.map(p => p.json);\nconst portfolio = portfolioData[0]?.json || { total_portfolio_value: 100000 };\n\nconst priceMap = {};\nprices.forEach(p => { priceMap[p.symbol] = parseFloat(p.close); });\n\nconst positionMap = {};\npositions.forEach(p => { positionMap[p.symbol] = p; });\n\nconst trades = [];\nconst timestamp = new Date().toISOString();\nconst capital = portfolio.total_portfolio_value * 0.01;  // 1% per trade risk\n\nsignals.forEach(sig => {\n  const symbol = sig.symbol;\n  const currentPrice = priceMap[symbol];\n  \n  if (!currentPrice) return;\n  \n  const existingPos = positionMap[symbol];\n  const position_size = capital / currentPrice * sig.signal_strength;\n  \n  // Check if we should open/close position\n  if (sig.signal === 1 && !existingPos) {\n    // Open long\n    trades.push({\n      symbol,\n      side: 'BUY',\n      quantity: Math.floor(position_size),\n      price: currentPrice,\n      strategy_type: sig.strategy_type,\n      timestamp\n    });\n  } else if (sig.signal === -1 && !existingPos) {\n    // Open short\n    trades.push({\n      symbol,\n      side: 'SELL',\n      quantity: Math.floor(position_size),\n      price: currentPrice,\n      strategy_type: sig.strategy_type,\n      timestamp\n    });\n  } else if (sig.signal === 0 && existingPos) {\n    // Close position\n    trades.push({\n      symbol,\n      side: existingPos.quantity > 0 ? 'SELL' : 'BUY',\n      quantity: Math.abs(existingPos.quantity),\n      price: currentPrice,\n      strategy_type: existingPos.strategy_type,\n      timestamp\n    });\n  }\n});\n\nreturn trades;"
       }
     },
     {
-      "name": "Format Trades for Output",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "name": "Update Positions & Log Trades",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [600, 100],
       "parameters": {
-        "mode": "manual",
-        "assignments": {
-          "assignments": [
-            {
-              "id": "0",
-              "name": "trades_executed",
-              "type": "expression",
-              "value": "={{$json}}"
-            }
-          ]
-        }
+        "jsCode": "const trades = $input.all();\nconst positionUpdates = [];\nconst tradeLog = [];\n\ntrades.forEach(trade => {\n  const t = trade.json;\n  \n  // Log trade\n  tradeLog.push({\n    symbol: t.symbol,\n    side: t.side,\n    quantity: t.quantity,\n    price: t.price,\n    pnl: 0,  // Will be calculated in portfolio aggregator\n    strategy_type: t.strategy_type,\n    timestamp: t.timestamp\n  });\n  \n  // Update position\n  if (t.side === 'BUY') {\n    positionUpdates.push({\n      symbol: t.symbol,\n      quantity: t.quantity,\n      entry_price: t.price,\n      current_price: t.price,\n      unrealized_pnl: 0,\n      position_value: t.quantity * t.price,\n      strategy_type: t.strategy_type,\n      entry_date: new Date().toISOString()\n    });\n  } else if (t.side === 'SELL') {\n    // Close position - mark as cleared\n    positionUpdates.push({\n      symbol: t.symbol + '_CLOSED',\n      quantity: 0,\n      entry_price: t.price,\n      current_price: t.price,\n      unrealized_pnl: 0,\n      position_value: 0,\n      strategy_type: t.strategy_type,\n      entry_date: new Date().toISOString()\n    });\n  }\n});\n\nreturn { positionUpdates, tradeLog };"
       }
     },
     {
-      "name": "Log Trade Execution",
-      "type": "n8n-nodes-base.function",
+      "name": "Insert Trade Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [800, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO trade_log (symbol, side, quantity, price, pnl, strategy_type, timestamp) VALUES {{$json.tradeLog | map('[symbol, side, quantity, price, pnl, strategy_type, timestamp]') | join('), (')}} ON CONFLICT DO NOTHING;",
+        "datasource": "PostgreSQL"
+      }
+    },
+    {
+      "name": "Update Positions Table",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 1,
       "position": [800, 100],
       "parameters": {
-        "functionCode": "const count = items.length; console.log(`[EXECUTION] Executed ${count} trades at ${new Date().toISOString()}`); return [{json: {status: 'success', trades_executed: count, timestamp: new Date().toISOString()}}];"
+        "operation": "executeQuery",
+        "query": "INSERT INTO paper_positions (symbol, quantity, entry_price, current_price, unrealized_pnl, position_value, strategy_type, entry_date) VALUES {{$json.positionUpdates | map('[symbol, quantity, entry_price, current_price, unrealized_pnl, position_value, strategy_type, entry_date]') | join('), (')}} ON CONFLICT (symbol) DO UPDATE SET quantity=EXCLUDED.quantity, current_price=EXCLUDED.current_price, unrealized_pnl=EXCLUDED.unrealized_pnl;",
+        "datasource": "PostgreSQL"
+      }
+    },
+    {
+      "name": "Update Unrealized PnL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1000, 100],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE paper_positions SET unrealized_pnl = (current_price - entry_price) * quantity WHERE quantity != 0;",
+        "datasource": "PostgreSQL"
       }
     }
   ],
   "connections": {
     "Trigger - Every 30 minutes": {
-      "main": [[{"node": "Simulate Portfolio State", "branch": 0, "index": 0}, {"node": "Simulate Signals", "branch": 0, "index": 0}, {"node": "Simulate Current Prices", "branch": 0, "index": 0}]]
+      "main": [[{ "node": "Load Current Positions", "branch": 0, "index": 0 }, { "node": "Load Active Signals", "branch": 0, "index": 0 }, { "node": "Load Current Prices", "branch": 0, "index": 0 }, { "node": "Load Portfolio State", "branch": 0, "index": 0 }]]
     },
-    "Simulate Portfolio State": {
-      "main": [[{"node": "Execute Trades", "branch": 0, "index": 0}]]
+    "Load Current Positions": {
+      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
     },
-    "Simulate Signals": {
-      "main": [[{"node": "Execute Trades", "branch": 0, "index": 1}]]
+    "Load Active Signals": {
+      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
     },
-    "Simulate Current Prices": {
-      "main": [[{"node": "Execute Trades", "branch": 0, "index": 2}]]
+    "Load Current Prices": {
+      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
     },
-    "Execute Trades": {
-      "main": [[{"node": "Format Trades for Output", "branch": 0, "index": 0}]]
+    "Load Portfolio State": {
+      "main": [[{ "node": "Match Signals to Prices & Execute", "branch": 0, "index": 0 }]]
     },
-    "Format Trades for Output": {
-      "main": [[{"node": "Log Trade Execution", "branch": 0, "index": 0}]]
+    "Match Signals to Prices & Execute": {
+      "main": [[{ "node": "Update Positions & Log Trades", "branch": 0, "index": 0 }]]
+    },
+    "Update Positions & Log Trades": {
+      "main": [[{ "node": "Insert Trade Log", "branch": 0, "index": 0 }, { "node": "Update Positions Table", "branch": 0, "index": 0 }]]
+    },
+    "Update Positions Table": {
+      "main": [[{ "node": "Update Unrealized PnL", "branch": 0, "index": 0 }]]
     }
   },
   "settings": {
