@@ -1,0 +1,230 @@
+2026-02-22 17:38:34,192 - __main__ - INFO - Initializing trading engine database...
+2026-02-22 17:38:34,198 - database - INFO - Table created/verified: IF NOT EXISTS market_prices
+2026-02-22 17:38:34,204 - database - INFO - Table created/verified: IF NOT EXISTS signals
+2026-02-22 17:38:34,210 - database - INFO - Table created/verified: IF NOT EXISTS paper_positions
+2026-02-22 17:38:34,212 - database - INFO - Table created/verified: IF NOT EXISTS trade_log
+2026-02-22 17:38:34,217 - database - INFO - Table created/verified: IF NOT EXISTS portfolio_summary
+2026-02-22 17:38:34,220 - database - INFO - Table created/verified: IF NOT EXISTS strategy_breakdown
+2026-02-22 17:38:34,224 - database - INFO - Table created/verified: IF NOT EXISTS ingestion_logs
+2026-02-22 17:38:34,226 - __main__ - INFO - ✓ Database initialized
+2026-02-22 17:38:42,731 - __main__ - INFO - ================================================================================
+2026-02-22 17:38:42,731 - __main__ - INFO - WORKFLOW 1: Market Data Ingestion
+2026-02-22 17:38:42,731 - __main__ - INFO - ================================================================================
+2026-02-22 17:38:42,732 - ingestion - INFO - Starting market data ingestion: INGEST-2026-02-22T17:38:42.732000-a4954c07
+2026-02-22 17:38:42,732 - ingestion - INFO - Fetching AAPL...
+2026-02-22 17:38:42,910 - database - ERROR - Query error: near "%": syntax error
+2026-02-22 17:38:42,910 - database - ERROR - Query: 
+            INSERT INTO market_prices (symbol, timestamp, close, open, high, low, volume, ingestion_run_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (symbol, timestamp) DO UPDATE SET close=EXCLUDED.close
+            
+2026-02-22 17:38:42,910 - database - ERROR - Params: ('AAPL', 1771781922732, 264.58, 258.97, 264.75, 258.16, 42070499, 'INGEST-2026-02-22T17:38:42.732000-a4954c07')
+2026-02-22 17:38:42,910 - ingestion - ERROR - AAPL: near "%": syntax error
+2026-02-22 17:38:42,910 - ingestion - INFO - Fetching MSFT...
+2026-02-22 17:38:43,350 - api_client - WARNING - No quote data for MSFT
+2026-02-22 17:38:43,351 - ingestion - WARNING - Invalid quote for MSFT
+2026-02-22 17:38:43,351 - ingestion - INFO - Fetching GOOGL...
+2026-02-22 17:38:43,843 - api_client - WARNING - No quote data for GOOGL
+2026-02-22 17:38:43,843 - ingestion - WARNING - Invalid quote for GOOGL
+2026-02-22 17:38:43,843 - ingestion - INFO - Fetching AMZN...
+2026-02-22 17:38:44,351 - database - ERROR - Query error: near "%": syntax error
+2026-02-22 17:38:44,352 - database - ERROR - Query: 
+            INSERT INTO market_prices (symbol, timestamp, close, open, high, low, volume, ingestion_run_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (symbol, timestamp) DO UPDATE SET close=EXCLUDED.close
+            
+2026-02-22 17:38:44,352 - database - ERROR - Params: ('AMZN', 1771781922732, 210.11, 204.76, 211.17, 203.75, 65881611, 'INGEST-2026-02-22T17:38:42.732000-a4954c07')
+2026-02-22 17:38:44,352 - ingestion - ERROR - AMZN: near "%": syntax error
+2026-02-22 17:38:44,352 - ingestion - INFO - Fetching TSLA...
+2026-02-22 17:38:44,842 - api_client - WARNING - No quote data for TSLA
+2026-02-22 17:38:44,842 - ingestion - WARNING - Invalid quote for TSLA
+2026-02-22 17:38:44,842 - ingestion - INFO - Fetching META...
+2026-02-22 17:38:45,342 - api_client - WARNING - No quote data for META
+2026-02-22 17:38:45,342 - ingestion - WARNING - Invalid quote for META
+2026-02-22 17:38:45,342 - ingestion - INFO - Fetching NVDA...
+2026-02-22 17:38:45,859 - database - ERROR - Query error: near "%": syntax error
+2026-02-22 17:38:45,859 - database - ERROR - Query: 
+            INSERT INTO market_prices (symbol, timestamp, close, open, high, low, volume, ingestion_run_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (symbol, timestamp) DO UPDATE SET close=EXCLUDED.close
+            
+2026-02-22 17:38:45,859 - database - ERROR - Params: ('NVDA', 1771781922732, 189.82, 186.57, 190.33, 185.9378, 178422337, 'INGEST-2026-02-22T17:38:42.732000-a4954c07')
+2026-02-22 17:38:45,859 - ingestion - ERROR - NVDA: near "%": syntax error
+2026-02-22 17:38:45,859 - ingestion - INFO - Fetching JPM...
+2026-02-22 17:38:46,342 - api_client - WARNING - No quote data for JPM
+2026-02-22 17:38:46,342 - ingestion - WARNING - Invalid quote for JPM
+2026-02-22 17:38:46,342 - ingestion - INFO - Fetching BAC...
+2026-02-22 17:38:46,852 - database - ERROR - Query error: near "%": syntax error
+2026-02-22 17:38:46,852 - database - ERROR - Query: 
+            INSERT INTO market_prices (symbol, timestamp, close, open, high, low, volume, ingestion_run_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (symbol, timestamp) DO UPDATE SET close=EXCLUDED.close
+            
+2026-02-22 17:38:46,853 - database - ERROR - Params: ('BAC', 1771781922732, 53.06, 52.53, 53.09, 51.83, 33552006, 'INGEST-2026-02-22T17:38:42.732000-a4954c07')
+2026-02-22 17:38:46,853 - ingestion - ERROR - BAC: near "%": syntax error
+2026-02-22 17:38:46,853 - ingestion - INFO - Fetching WFC...
+2026-02-22 17:38:47,345 - api_client - WARNING - No quote data for WFC
+2026-02-22 17:38:47,345 - ingestion - WARNING - Invalid quote for WFC
+2026-02-22 17:38:47,345 - ingestion - INFO - Fetching XOM...
+2026-02-22 17:38:47,842 - api_client - WARNING - No quote data for XOM
+2026-02-22 17:38:47,842 - ingestion - WARNING - Invalid quote for XOM
+2026-02-22 17:38:47,842 - ingestion - INFO - Fetching CVX...
+2026-02-22 17:38:48,359 - database - ERROR - Query error: near "%": syntax error
+2026-02-22 17:38:48,359 - database - ERROR - Query: 
+            INSERT INTO market_prices (symbol, timestamp, close, open, high, low, volume, ingestion_run_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (symbol, timestamp) DO UPDATE SET close=EXCLUDED.close
+            
+2026-02-22 17:38:48,359 - database - ERROR - Params: ('CVX', 1771781922732, 183.93, 184.59, 184.89, 182.32, 9566208, 'INGEST-2026-02-22T17:38:42.732000-a4954c07')
+2026-02-22 17:38:48,359 - ingestion - ERROR - CVX: near "%": syntax error
+2026-02-22 17:38:48,359 - ingestion - INFO - Fetching MCD...
+2026-02-22 17:38:48,846 - api_client - WARNING - No quote data for MCD
+2026-02-22 17:38:48,847 - ingestion - WARNING - Invalid quote for MCD
+2026-02-22 17:38:48,847 - ingestion - INFO - Fetching NKE...
+2026-02-22 17:38:49,344 - api_client - WARNING - No quote data for NKE
+2026-02-22 17:38:49,345 - ingestion - WARNING - Invalid quote for NKE
+2026-02-22 17:38:49,345 - ingestion - INFO - Fetching COST...
+2026-02-22 17:38:49,855 - database - ERROR - Query error: near "%": syntax error
+2026-02-22 17:38:49,855 - database - ERROR - Query: 
+            INSERT INTO market_prices (symbol, timestamp, close, open, high, low, volume, ingestion_run_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (symbol, timestamp) DO UPDATE SET close=EXCLUDED.close
+            
+2026-02-22 17:38:49,855 - database - ERROR - Params: ('COST', 1771781922732, 985.27, 983.13, 987.37, 977.81, 1662183, 'INGEST-2026-02-22T17:38:42.732000-a4954c07')
+2026-02-22 17:38:49,855 - ingestion - ERROR - COST: near "%": syntax error
+2026-02-22 17:38:49,856 - database - ERROR - Query error: near "%": syntax error
+2026-02-22 17:38:49,856 - database - ERROR - Query: 
+    INSERT INTO ingestion_logs (run_id, timestamp, status, records_inserted, error_message)
+    VALUES (%s, %s, %s, %s, %s)
+    
+2026-02-22 17:38:49,856 - database - ERROR - Params: ('INGEST-2026-02-22T17:38:42.732000-a4954c07', datetime.datetime(2026, 2, 22, 17, 38, 49, 856004), 'partial', 0, 'AAPL: near "%": syntax error | AMZN: near "%": syntax error | NVDA: near "%": syntax error | BAC: near "%": syntax error | CVX: near "%": syntax error | COST: near "%": syntax error')
+2026-02-22 17:38:49,856 - __main__ - ERROR - ✗ Ingestion failed: near "%": syntax error
+2026-02-22 17:39:37,128 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:37,128 - __main__ - INFO - WORKFLOW 1: Market Data Ingestion
+2026-02-22 17:39:37,128 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:37,128 - ingestion - INFO - Starting market data ingestion: INGEST-2026-02-22T17:39:37.128831-aac05c34
+2026-02-22 17:39:37,128 - ingestion - INFO - Fetching AAPL...
+2026-02-22 17:39:37,287 - ingestion - INFO - Inserted AAPL: $264.58
+2026-02-22 17:39:37,288 - ingestion - INFO - Fetching MSFT...
+2026-02-22 17:39:37,745 - api_client - WARNING - No quote data for MSFT
+2026-02-22 17:39:37,745 - ingestion - WARNING - Invalid quote for MSFT
+2026-02-22 17:39:37,745 - ingestion - INFO - Fetching GOOGL...
+2026-02-22 17:39:38,236 - api_client - WARNING - No quote data for GOOGL
+2026-02-22 17:39:38,236 - ingestion - WARNING - Invalid quote for GOOGL
+2026-02-22 17:39:38,236 - ingestion - INFO - Fetching AMZN...
+2026-02-22 17:39:38,770 - ingestion - INFO - Inserted AMZN: $210.11
+2026-02-22 17:39:38,770 - ingestion - INFO - Fetching TSLA...
+2026-02-22 17:39:39,246 - api_client - WARNING - No quote data for TSLA
+2026-02-22 17:39:39,246 - ingestion - WARNING - Invalid quote for TSLA
+2026-02-22 17:39:39,246 - ingestion - INFO - Fetching META...
+2026-02-22 17:39:39,737 - api_client - WARNING - No quote data for META
+2026-02-22 17:39:39,737 - ingestion - WARNING - Invalid quote for META
+2026-02-22 17:39:39,737 - ingestion - INFO - Fetching NVDA...
+2026-02-22 17:39:40,253 - ingestion - INFO - Inserted NVDA: $189.82
+2026-02-22 17:39:40,253 - ingestion - INFO - Fetching JPM...
+2026-02-22 17:39:40,736 - api_client - WARNING - No quote data for JPM
+2026-02-22 17:39:40,736 - ingestion - WARNING - Invalid quote for JPM
+2026-02-22 17:39:40,737 - ingestion - INFO - Fetching BAC...
+2026-02-22 17:39:41,240 - api_client - WARNING - No quote data for BAC
+2026-02-22 17:39:41,240 - ingestion - WARNING - Invalid quote for BAC
+2026-02-22 17:39:41,240 - ingestion - INFO - Fetching WFC...
+2026-02-22 17:39:41,752 - ingestion - INFO - Inserted WFC: $88.7
+2026-02-22 17:39:41,752 - ingestion - INFO - Fetching XOM...
+2026-02-22 17:39:42,241 - api_client - WARNING - No quote data for XOM
+2026-02-22 17:39:42,241 - ingestion - WARNING - Invalid quote for XOM
+2026-02-22 17:39:42,241 - ingestion - INFO - Fetching CVX...
+2026-02-22 17:39:42,736 - api_client - WARNING - No quote data for CVX
+2026-02-22 17:39:42,736 - ingestion - WARNING - Invalid quote for CVX
+2026-02-22 17:39:42,736 - ingestion - INFO - Fetching MCD...
+2026-02-22 17:39:43,247 - ingestion - INFO - Inserted MCD: $329.23
+2026-02-22 17:39:43,248 - ingestion - INFO - Fetching NKE...
+2026-02-22 17:39:43,737 - api_client - WARNING - No quote data for NKE
+2026-02-22 17:39:43,738 - ingestion - WARNING - Invalid quote for NKE
+2026-02-22 17:39:43,738 - ingestion - INFO - Fetching COST...
+2026-02-22 17:39:44,256 - api_client - WARNING - No quote data for COST
+2026-02-22 17:39:44,256 - ingestion - WARNING - Invalid quote for COST
+2026-02-22 17:39:44,259 - ingestion - INFO - Ingestion complete: 5 records inserted
+2026-02-22 17:39:44,259 - __main__ - INFO - ✓ Ingestion complete: 5 records
+2026-02-22 17:39:46,179 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:46,181 - __main__ - INFO - WORKFLOW 2: Signal Generation
+2026-02-22 17:39:46,181 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:46,182 - signal_generator - INFO - Starting signal generation...
+2026-02-22 17:39:46,186 - signal_generator - INFO - No signals generated
+2026-02-22 17:39:46,186 - __main__ - INFO - ✓ Signal generation complete: no signals
+2026-02-22 17:39:48,160 - __main__ - INFO - 
+================================================================================
+2026-02-22 17:39:48,161 - __main__ - INFO - TRADING ENGINE STARTED - 2026-02-22T17:39:48.161259
+2026-02-22 17:39:48,161 - __main__ - INFO - ================================================================================
+
+2026-02-22 17:39:48,161 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:48,161 - __main__ - INFO - WORKFLOW 1: Market Data Ingestion
+2026-02-22 17:39:48,161 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:48,161 - ingestion - INFO - Starting market data ingestion: INGEST-2026-02-22T17:39:48.161463-142c03e4
+2026-02-22 17:39:48,161 - ingestion - INFO - Fetching AAPL...
+2026-02-22 17:39:48,302 - ingestion - INFO - Inserted AAPL: $264.58
+2026-02-22 17:39:48,303 - ingestion - INFO - Fetching MSFT...
+2026-02-22 17:39:48,768 - api_client - WARNING - No quote data for MSFT
+2026-02-22 17:39:48,768 - ingestion - WARNING - Invalid quote for MSFT
+2026-02-22 17:39:48,768 - ingestion - INFO - Fetching GOOGL...
+2026-02-22 17:39:49,271 - api_client - WARNING - No quote data for GOOGL
+2026-02-22 17:39:49,271 - ingestion - WARNING - Invalid quote for GOOGL
+2026-02-22 17:39:49,271 - ingestion - INFO - Fetching AMZN...
+2026-02-22 17:39:49,803 - ingestion - INFO - Inserted AMZN: $210.11
+2026-02-22 17:39:49,803 - ingestion - INFO - Fetching TSLA...
+2026-02-22 17:39:50,273 - api_client - WARNING - No quote data for TSLA
+2026-02-22 17:39:50,273 - ingestion - WARNING - Invalid quote for TSLA
+2026-02-22 17:39:50,273 - ingestion - INFO - Fetching META...
+2026-02-22 17:39:50,769 - api_client - WARNING - No quote data for META
+2026-02-22 17:39:50,769 - ingestion - WARNING - Invalid quote for META
+2026-02-22 17:39:50,770 - ingestion - INFO - Fetching NVDA...
+2026-02-22 17:39:51,291 - ingestion - INFO - Inserted NVDA: $189.82
+2026-02-22 17:39:51,291 - ingestion - INFO - Fetching JPM...
+2026-02-22 17:39:51,775 - api_client - WARNING - No quote data for JPM
+2026-02-22 17:39:51,775 - ingestion - WARNING - Invalid quote for JPM
+2026-02-22 17:39:51,775 - ingestion - INFO - Fetching BAC...
+2026-02-22 17:39:52,268 - api_client - WARNING - No quote data for BAC
+2026-02-22 17:39:52,268 - ingestion - WARNING - Invalid quote for BAC
+2026-02-22 17:39:52,268 - ingestion - INFO - Fetching WFC...
+2026-02-22 17:39:52,785 - ingestion - INFO - Inserted WFC: $88.7
+2026-02-22 17:39:52,785 - ingestion - INFO - Fetching XOM...
+2026-02-22 17:39:53,272 - api_client - WARNING - No quote data for XOM
+2026-02-22 17:39:53,272 - ingestion - WARNING - Invalid quote for XOM
+2026-02-22 17:39:53,272 - ingestion - INFO - Fetching CVX...
+2026-02-22 17:39:53,770 - api_client - WARNING - No quote data for CVX
+2026-02-22 17:39:53,770 - ingestion - WARNING - Invalid quote for CVX
+2026-02-22 17:39:53,770 - ingestion - INFO - Fetching MCD...
+2026-02-22 17:39:54,281 - ingestion - INFO - Inserted MCD: $329.23
+2026-02-22 17:39:54,281 - ingestion - INFO - Fetching NKE...
+2026-02-22 17:39:54,779 - api_client - WARNING - No quote data for NKE
+2026-02-22 17:39:54,779 - ingestion - WARNING - Invalid quote for NKE
+2026-02-22 17:39:54,779 - ingestion - INFO - Fetching COST...
+2026-02-22 17:39:55,270 - api_client - WARNING - No quote data for COST
+2026-02-22 17:39:55,270 - ingestion - WARNING - Invalid quote for COST
+2026-02-22 17:39:55,279 - ingestion - INFO - Ingestion complete: 5 records inserted
+2026-02-22 17:39:55,279 - __main__ - INFO - ✓ Ingestion complete: 5 records
+2026-02-22 17:39:55,279 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:55,279 - __main__ - INFO - WORKFLOW 2: Signal Generation
+2026-02-22 17:39:55,279 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:55,279 - signal_generator - INFO - Starting signal generation...
+2026-02-22 17:39:55,281 - signal_generator - INFO - No signals generated
+2026-02-22 17:39:55,282 - __main__ - INFO - ✓ Signal generation complete: no signals
+2026-02-22 17:39:55,282 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:55,282 - __main__ - INFO - WORKFLOW 3: Trade Execution
+2026-02-22 17:39:55,283 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:55,283 - executor - INFO - Starting trade execution...
+2026-02-22 17:39:55,285 - executor - INFO - No trades executed
+2026-02-22 17:39:55,285 - __main__ - INFO - ✓ Trade execution complete: 0 trades
+2026-02-22 17:39:55,286 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:55,286 - __main__ - INFO - WORKFLOW 4: Portfolio Aggregation
+2026-02-22 17:39:55,286 - __main__ - INFO - ================================================================================
+2026-02-22 17:39:55,286 - portfolio - INFO - Calculating portfolio metrics...
+2026-02-22 17:39:55,288 - portfolio - INFO - Portfolio: $100000.00 | P&L: $0.00
+2026-02-22 17:39:55,288 - __main__ - INFO - ✓ Portfolio aggregation complete
+2026-02-22 17:39:55,288 - __main__ - INFO -   Portfolio Value: $100000.00
+2026-02-22 17:39:55,288 - __main__ - INFO -   P&L: $0.00
+2026-02-22 17:39:55,288 - __main__ - INFO -   Positions: 0
+2026-02-22 17:39:55,288 - __main__ - INFO - 
+================================================================================
+2026-02-22 17:39:55,288 - __main__ - INFO - ✓ ALL WORKFLOWS COMPLETED SUCCESSFULLY
+2026-02-22 17:39:55,288 - __main__ - INFO - ================================================================================
+
